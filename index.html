@@ -1,0 +1,1083 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ชุมชนบัวนครินทร์ — Basket Intelligence</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+:root{
+  --bg:#F5F4F0;--surface:#fff;--s2:#EEECE7;--border:#E0DDD6;
+  --text:#181714;--text2:#64615C;--text3:#9A9791;
+  --blue:#1A4FBF;--blue-lt:#E8EEFB;--green:#0A6640;--green-lt:#E2F2EB;
+  --amber:#8C5200;--amber-lt:#FBF0DC;--red:#A31F1F;--red-lt:#FAEAEA;
+  --s13:#1A4FBF;--s17:#0A6640;--s18:#8C3A1A;
+  --mono:"DM Mono",monospace;--sans:"DM Sans",sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+html{font-size:13px;}
+body{font-family:var(--sans);background:var(--bg);color:var(--text);min-height:100vh;}
+
+/* LAYOUT */
+.sidebar{background:var(--text);position:fixed;top:0;left:0;width:210px;height:100vh;overflow-y:auto;z-index:20;display:flex;flex-direction:column;}
+.main{margin-left:210px;padding:32px 44px 56px;width:calc(100vw - 210px);}
+.panel{display:none;}.panel.active{display:block;}
+
+/* SIDEBAR */
+.sb-top{padding:22px 16px 18px;border-bottom:.5px solid rgba(255,255,255,.1);}
+.sb-eye{font-family:var(--mono);font-size:9px;letter-spacing:.12em;color:rgba(255,255,255,.35);text-transform:uppercase;margin-bottom:4px;}
+.sb-title{font-size:12px;font-weight:500;color:#fff;line-height:1.4;}
+.sb-sec{padding:12px 16px 2px;font-size:9px;font-weight:500;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.3);}
+.ni{display:flex;align-items:center;gap:8px;padding:7px 16px;font-size:12px;color:rgba(255,255,255,.55);cursor:pointer;border-left:2px solid transparent;transition:all .12s;}
+.ni:hover{color:#fff;background:rgba(255,255,255,.06);}
+.ni.active{color:#fff;border-left-color:#fff;background:rgba(255,255,255,.08);}
+.nd{width:6px;height:6px;border-radius:50%;flex-shrink:0;}
+.sb-foot{margin-top:auto;padding:14px 16px;border-top:.5px solid rgba(255,255,255,.1);}
+.sb-st{font-size:9px;color:rgba(255,255,255,.35);margin-bottom:6px;font-family:var(--mono);}
+.sb-btn{display:block;padding:7px 10px;border:.5px solid rgba(255,255,255,.2);border-radius:5px;font-size:11px;color:rgba(255,255,255,.6);cursor:pointer;text-align:center;margin-bottom:6px;transition:all .12s;}
+.sb-btn:hover{background:rgba(255,255,255,.08);color:#fff;}
+
+/* PAGE HEADER */
+.ph{margin-bottom:24px;}
+.ph-eye{font-family:var(--mono);font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--text3);margin-bottom:5px;display:block;}
+.ph-title{font-size:20px;font-weight:300;letter-spacing:-.02em;line-height:1.3;}
+.ph-title strong{font-weight:500;}
+.ph-meta{margin-top:6px;display:flex;gap:14px;flex-wrap:wrap;}
+.ph-tag{font-size:10px;color:var(--text3);display:flex;align-items:center;gap:4px;}
+.ph-tag::before{content:"";width:3px;height:3px;border-radius:50%;background:currentColor;}
+
+/* KPI */
+.kpi-strip{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1px;background:var(--border);border:1px solid var(--border);border-radius:9px;overflow:hidden;margin-bottom:22px;}
+.kpi-cell{background:var(--surface);padding:16px 18px;}
+.kpi-lbl{font-size:9px;font-weight:500;text-transform:uppercase;letter-spacing:.08em;color:var(--text3);margin-bottom:6px;}
+.kpi-val{font-family:var(--mono);font-size:20px;color:var(--text);line-height:1;letter-spacing:-.02em;}
+.kpi-sub{font-size:10px;color:var(--text3);margin-top:3px;}
+
+/* CARDS */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:18px 20px;margin-bottom:14px;}
+.card-hd{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:14px;}
+.card-ttl{font-size:9px;font-weight:500;text-transform:uppercase;letter-spacing:.08em;color:var(--text2);}
+.card-note{font-size:9px;color:var(--text3);font-family:var(--mono);}
+.g2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px;}
+.g3-2{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr);gap:14px;}
+
+/* ARCH BARS */
+.arch-list{display:flex;flex-direction:column;gap:8px;}
+.arch-row{display:grid;grid-template-columns:minmax(0,1fr) 72px 40px 56px 26px;align-items:center;gap:7px;}
+.arch-name{font-size:11px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.arch-track{height:4px;background:var(--s2);border-radius:2px;overflow:hidden;}
+.arch-fill{height:100%;border-radius:2px;}
+.arch-pct{font-family:var(--mono);font-size:10px;text-align:right;}
+.arch-spend{font-family:var(--mono);font-size:10px;color:var(--text3);text-align:right;}
+.vt{font-size:8px;font-weight:500;padding:1px 5px;border-radius:3px;text-align:center;}
+.vtH{background:#E8EEFB;color:#1A4FBF;}.vtM{background:#EEECE7;color:#64615C;}.vtL{background:#FAEAEA;color:#A31F1F;}
+
+/* TABLES */
+.tbl{width:100%;border-collapse:collapse;}
+.tbl thead tr{border-bottom:1px solid var(--border);}
+.tbl th{font-size:9px;font-weight:500;text-transform:uppercase;letter-spacing:.07em;color:var(--text3);text-align:left;padding-bottom:7px;}
+.tbl th.r,.tbl td.r{text-align:right;}
+.tbl td{padding:6px 0;border-bottom:.5px solid var(--border);font-size:11px;color:var(--text2);vertical-align:middle;}
+.tbl tr:last-child td{border-bottom:none;}
+.tn{color:var(--text)!important;font-weight:500;}
+.ta{font-size:10px;color:var(--text3);}
+.badge{display:inline-block;font-size:9px;font-weight:500;padding:2px 7px;border-radius:3px;font-family:var(--mono);}
+.bz{background:var(--red-lt);color:var(--red);}
+.bg{background:var(--amber-lt);color:var(--amber);}
+.bok{background:var(--green-lt);color:var(--green);}
+
+/* TREND BADGE */
+.tb-pos{font-family:var(--mono);font-size:9px;padding:1px 6px;border-radius:3px;background:var(--green-lt);color:var(--green);}
+.tb-neg{font-family:var(--mono);font-size:9px;padding:1px 6px;border-radius:3px;background:var(--red-lt);color:var(--red);}
+.tb-neu{font-family:var(--mono);font-size:9px;padding:1px 6px;border-radius:3px;background:var(--s2);color:var(--text3);}
+
+/* SCATTER */
+.scatter-pos{position:relative;width:100%;}
+
+/* LEGEND */
+.leg{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:10px;}
+.leg-i{display:flex;align-items:center;gap:5px;font-size:10px;color:var(--text2);}
+.leg-sq{width:8px;height:8px;border-radius:2px;flex-shrink:0;}
+
+/* LAYOUT CARDS */
+.lcard{background:var(--surface);border:1px solid var(--border);border-radius:9px;margin-bottom:10px;overflow:hidden;}
+.lcard-hd{display:flex;align-items:center;gap:10px;padding:12px 18px;border-bottom:.5px solid var(--border);}
+.lcard-store{font-family:var(--mono);font-size:10px;padding:2px 7px;border-radius:3px;font-weight:500;}
+.lcard-ttl{font-size:12px;font-weight:500;color:var(--text);flex:1;}
+.lcard-v{font-size:9px;font-weight:500;text-transform:uppercase;letter-spacing:.07em;padding:2px 9px;border-radius:3px;}
+.va{background:var(--green-lt);color:var(--green);}
+.vt2{background:var(--amber-lt);color:var(--amber);}
+.vm{background:var(--red-lt);color:var(--red);}
+.lcard-body{display:grid;grid-template-columns:1fr 1fr;}
+.lcard-col{padding:12px 18px;}
+.lcard-col:first-child{border-right:.5px solid var(--border);}
+.lcard-col-ttl{font-size:9px;font-weight:500;text-transform:uppercase;letter-spacing:.07em;color:var(--text3);margin-bottom:7px;}
+.lcard-txt{font-size:11px;color:var(--text2);line-height:1.6;}
+.lcard-txt strong{color:var(--text);font-weight:500;}
+.lm{display:inline-block;font-size:10px;background:var(--s2);padding:2px 7px;border-radius:3px;margin:2px 2px 0 0;}
+
+/* SHELF HEAT TABLE */
+.shelf-row{display:grid;grid-template-columns:52px 1fr 1fr 80px 80px 56px 56px 36px;align-items:center;gap:8px;padding:5px 0;border-bottom:.5px solid var(--border);cursor:default;position:relative;}
+.shelf-row:last-child{border-bottom:none;}
+.shelf-row:hover{background:rgba(0,0,0,.02);}
+.shelf-num{font-family:var(--mono);font-size:11px;font-weight:500;}
+.shelf-label{font-size:11px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.shelf-plan{font-size:11px;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.shelf-bpsd{font-family:var(--mono);font-size:11px;text-align:right;}
+.shelf-bar-wrap{display:flex;align-items:center;gap:4px;}
+.shelf-bar-bg{width:48px;height:6px;background:var(--s2);border-radius:3px;overflow:hidden;flex-shrink:0;}
+.shelf-bar-fill{height:100%;border-radius:3px;}
+.shelf-pct{font-family:var(--mono);font-size:9px;min-width:36px;}
+.shelf-hml{font-size:9px;text-align:center;}
+.shelf-chg{font-size:9px;}
+
+/* TOOLTIP */
+.tip{position:fixed;background:var(--text);color:#fff;border-radius:7px;padding:10px 13px;font-size:11px;pointer-events:none;z-index:999;min-width:180px;display:none;line-height:1.6;}
+.tip-title{font-weight:500;margin-bottom:4px;}
+.tip-row{display:flex;justify-content:space-between;gap:14px;font-size:10px;}
+.tip-label{color:rgba(255,255,255,.55);}
+.tip-val{font-family:var(--mono);}
+
+/* TABS */
+.tabs{display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap;}
+.tab{padding:5px 13px;font-size:11px;border:.5px solid var(--border);background:var(--surface);color:var(--text2);border-radius:5px;cursor:pointer;transition:all .12s;}
+.tab.active{background:var(--text);color:#fff;border-color:var(--text);}
+
+/* QUADRANT DETAIL */
+.qd-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;}
+.qd-cell{background:var(--s2);border-radius:7px;padding:12px 14px;}
+.qd-store{font-family:var(--mono);font-size:9px;color:var(--text3);margin-bottom:7px;}
+.qd-kpis{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-bottom:8px;}
+.qd-kpi-l{font-size:9px;color:var(--text3);}
+.qd-kpi-v{font-family:var(--mono);font-size:13px;font-weight:500;}
+.qd-sec{font-size:9px;font-weight:500;text-transform:uppercase;letter-spacing:.06em;color:var(--text3);margin-bottom:4px;}
+.qd-list{font-size:10px;color:var(--text2);line-height:1.6;}
+
+/* INSIGHT ROWS */
+.ins-row{display:grid;grid-template-columns:22px 1fr auto;gap:10px;align-items:start;padding:11px 0;border-bottom:.5px solid var(--border);}
+.ins-row:last-child{border-bottom:none;}
+.ins-n{font-family:var(--mono);font-size:10px;color:var(--text3);padding-top:1px;}
+.ins-ttl{font-size:12px;font-weight:500;margin-bottom:2px;}
+.ins-desc{font-size:11px;color:var(--text2);line-height:1.55;}
+.ins-tag{font-size:9px;font-weight:500;text-transform:uppercase;letter-spacing:.06em;padding:2px 8px;border-radius:3px;white-space:nowrap;}
+
+/* CMP TABLE */
+.cmp-tbl{width:100%;border-collapse:collapse;}
+.cmp-tbl th{font-size:9px;font-weight:500;text-transform:uppercase;letter-spacing:.07em;color:var(--text3);padding:0 0 7px;border-bottom:1px solid var(--border);text-align:right;}
+.cmp-tbl th:first-child{text-align:left;}
+.cmp-tbl td{padding:6px 0;border-bottom:.5px solid var(--border);font-size:11px;text-align:right;color:var(--text2);}
+.cmp-tbl td:first-child{text-align:left;color:var(--text);font-weight:500;}
+.cmp-tbl tr:last-child td{border-bottom:none;}
+
+/* SHELF HEADER ROW */
+.shelf-hdr{display:grid;grid-template-columns:52px 1fr 1fr 80px 80px 56px 56px 36px;gap:8px;padding:0 0 7px;border-bottom:1px solid var(--border);margin-bottom:4px;}
+.shelf-hdr span{font-size:9px;font-weight:500;text-transform:uppercase;letter-spacing:.07em;color:var(--text3);}
+.shelf-hdr .r{text-align:right;}
+</style>
+</head>
+<body>
+
+<div class="tip" id="tooltip">
+  <div class="tip-title" id="tip-title"></div>
+  <div class="tip-row"><span class="tip-label">BPSD ฿</span><span class="tip-val" id="tip-bpsd"></span></div>
+  <div class="tip-row"><span class="tip-label">MtM vs Feb</span><span class="tip-val" id="tip-mtm"></span></div>
+  <div class="tip-row"><span class="tip-label">HML</span><span class="tip-val" id="tip-hml"></span></div>
+  <div class="tip-row"><span class="tip-label">Current</span><span class="tip-val" id="tip-ps"></span></div>
+  <div class="tip-row"><span class="tip-label">Plan</span><span class="tip-val" id="tip-plan"></span></div>
+</div>
+
+<!-- SIDEBAR -->
+<nav class="sidebar">
+  <div class="sb-top">
+    <div class="sb-eye">CPAll · Basket Intel</div>
+    <div class="sb-title">ชุมชนบัวนครินทร์</div>
+  </div>
+  <div class="sb-sec">Overview</div>
+  <div class="ni active" data-p="community" onclick="nav(this)"><span class="nd" style="background:#9A9791"></span>Community</div>
+  <div class="sb-sec">Stores</div>
+  <div class="ni" data-p="s13079" onclick="nav(this)"><span class="nd" style="background:var(--s13)"></span>13079 · บัวนครินทร์ 1</div>
+  <div class="ni" data-p="s17436" onclick="nav(this)"><span class="nd" style="background:var(--s17)"></span>17436 · บัวนครินทร์ 2</div>
+  <div class="ni" data-p="s18302" onclick="nav(this)"><span class="nd" style="background:var(--s18)"></span>18302 · บัวนครินทร์ 3</div>
+  <div class="sb-sec">Analysis</div>
+  <div class="ni" data-p="scatter" onclick="nav(this)"><span class="nd" style="background:#6B3FA0"></span>Opportunity Matrix</div>
+  <div class="ni" data-p="gaps" onclick="nav(this)"><span class="nd" style="background:#C0401A"></span>Gap & Ranging</div>
+  <div class="ni" data-p="layout" onclick="nav(this)"><span class="nd" style="background:#6B3FA0"></span>Layout Changes</div>
+  <div class="ni" data-p="shelves" onclick="nav(this)"><span class="nd" style="background:var(--s17)"></span>Shelf View</div>
+  <div class="sb-foot">
+    <div class="sb-st" id="st-basket">No basket data</div>
+    <label class="sb-btn" for="f-basket">↑ basket_analysis_output.xlsx</label>
+    <input type="file" id="f-basket" accept=".xlsx" style="display:none">
+    <div class="sb-st" id="st-layout" style="margin-top:8px">No layout data</div>
+    <label class="sb-btn" for="f-layout">↑ Layout_บัวนครินทร์.xlsx</label>
+    <input type="file" id="f-layout" accept=".xlsx" style="display:none">
+  </div>
+</nav>
+
+<!-- MAIN -->
+<div class="main">
+
+<!-- COMMUNITY -->
+<div class="panel active" id="p-community">
+  <div class="ph"><div class="ph-eye">Community · 3 Stores</div><div class="ph-title"><strong>Basket Behavior</strong> — ชุมชนบัวนครินทร์</div>
+  <div class="ph-meta"><span class="ph-tag">203,024 baskets</span><span class="ph-tag">Ex-VAT</span><span class="ph-tag">Feb 2026</span></div></div>
+  <div class="kpi-strip">
+    <div class="kpi-cell"><div class="kpi-lbl">Total baskets</div><div class="kpi-val" id="ov-b">—</div><div class="kpi-sub">across 3 stores</div></div>
+    <div class="kpi-cell"><div class="kpi-lbl">Avg basket value</div><div class="kpi-val" id="ov-abv">—</div><div class="kpi-sub">฿ ex-VAT weighted</div></div>
+    <div class="kpi-cell"><div class="kpi-lbl">Fresh penetration</div><div class="kpi-val" id="ov-fresh">—</div><div class="kpi-sub">% of baskets</div></div>
+    <div class="kpi-cell"><div class="kpi-lbl">Top archetype</div><div class="kpi-val" id="ov-arch" style="font-size:15px">—</div><div class="kpi-sub">community-wide</div></div>
+  </div>
+  <div class="g3-2">
+    <div class="card" style="margin-bottom:0">
+      <div class="card-hd"><span class="card-ttl">Archetype mix by store</span><span class="card-note">% of store baskets</span></div>
+      <div class="leg" id="leg-arch-ov"></div>
+      <div style="position:relative;height:250px"><canvas id="ch-arch-ov"></canvas></div>
+    </div>
+    <div class="card" style="margin-bottom:0">
+      <div class="card-hd"><span class="card-ttl">Store comparison</span></div>
+      <table class="cmp-tbl" id="cmp-tbl"></table>
+    </div>
+  </div>
+  <div style="height:14px"></div>
+  <div class="card">
+    <div class="card-hd"><span class="card-ttl">Volume by time slot</span><span class="card-note">% stacked by store</span></div>
+    <div style="position:relative;height:160px"><canvas id="ch-time-ov"></canvas></div>
+  </div>
+  <div class="card">
+    <div class="card-hd"><span class="card-ttl">Key observations</span></div>
+    <div class="ins-row"><div class="ins-n">01</div><div><div class="ins-ttl">Stores are structurally similar — no specialization yet</div><div class="ins-desc">All 3 stores show nearly identical archetype distribution: Fresh-Led Mixed ~31%, Quick Drink ~13%, Big Mixed ~11%. The community has not differentiated by store role.</div></div><div><span class="ins-tag" style="background:#E8EEFB;color:#1A4FBF">Strategic</span></div></div>
+    <div class="ins-row"><div class="ins-n">02</div><div><div class="ins-ttl">Beverage Top-Up is the clearest upsell opportunity</div><div class="ins-desc">10–11% of baskets across all stores are multi-item beverage buyers with ZERO penetration of Bakery, Chilled Meal, and Counter Food. The largest single revenue gap in the community.</div></div><div><span class="ins-tag" style="background:#FBF0DC;color:#8C5200">Revenue</span></div></div>
+    <div class="ins-row"><div class="ins-n">03</div><div><div class="ins-ttl">Fresh-Led Mixed drives the most revenue</div><div class="ins-desc">~31% of baskets, avg ฿191–217. Highest volume and spend. Sub-group gaps within this archetype have the largest absolute revenue impact.</div></div><div><span class="ins-tag" style="background:#E2F2EB;color:#0A6640">Priority</span></div></div>
+    <div class="ins-row"><div class="ins-n">04</div><div><div class="ins-ttl">Morning Routine — small but high-value</div><div class="ins-desc">3.7–4.8% of baskets, avg ฿144–169, 3.6–3.7 PMA groups. Bakery and Dairy gaps here target the highest-spend morning customers. PMA62 Fresh Bakery at 13079 is growing +243% MtM.</div></div><div><span class="ins-tag" style="background:#FAEEE9;color:#C0401A">Opportunity</span></div></div>
+  </div>
+</div>
+
+<!-- STORE PANELS -->
+<div class="panel" id="p-s13079"><div id="c-13079"></div></div>
+<div class="panel" id="p-s17436"><div id="c-17436"></div></div>
+<div class="panel" id="p-s18302"><div id="c-18302"></div></div>
+
+<!-- SCATTER -->
+<div class="panel" id="p-scatter">
+  <div class="ph"><div class="ph-eye">Analysis · Opportunity Matrix</div><div class="ph-title"><strong>Breadth vs Spend Intensity</strong></div>
+  <div class="ph-meta"><span class="ph-tag">X = distinct PMA groups (centred at median)</span><span class="ph-tag">Y = avg unit price ฿ (centred)</span><span class="ph-tag">Bubble = basket count</span></div></div>
+  <div class="card">
+    <div class="card-hd">
+      <span class="card-ttl">Quadrant scatter</span>
+      <select id="scatter-store-sel" onchange="renderScatter()" style="font-size:11px;border:.5px solid var(--border);border-radius:4px;padding:3px 8px;background:var(--surface);font-family:var(--sans);">
+        <option value="ALL">All stores</option><option value="13079">13079</option><option value="17436">17436</option><option value="18302">18302</option>
+      </select>
+    </div>
+    <div class="leg" id="leg-scatter"></div>
+    <div style="position:relative;height:400px"><canvas id="ch-scatter"></canvas></div>
+  </div>
+  <div class="card">
+    <div class="card-hd"><span class="card-ttl">Quadrant detail</span>
+      <span style="display:flex;gap:5px">
+        <button class="tab active" onclick="showQ('Q1',this)">Q1</button>
+        <button class="tab" onclick="showQ('Q2',this)">Q2</button>
+        <button class="tab" onclick="showQ('Q3',this)">Q3</button>
+        <button class="tab" onclick="showQ('Q4',this)">Q4</button>
+      </span>
+    </div>
+    <div id="qd-body"><p style="color:var(--text3);font-size:11px">Load xlsx and select a quadrant</p></div>
+  </div>
+  <div class="card">
+    <div class="card-hd"><span class="card-ttl">Scatter data table</span><span class="card-note">sorted by basket count</span></div>
+    <table class="tbl"><thead><tr><th>Archetype</th><th>Store</th><th class="r">Baskets</th><th class="r">PMA groups</th><th class="r">Avg unit ฿</th><th class="r">Avg spend ฿</th><th class="r">Value tier</th></tr></thead><tbody id="scatter-tbl"></tbody></table>
+  </div>
+</div>
+
+<!-- GAPS -->
+<div class="panel" id="p-gaps">
+  <div class="ph"><div class="ph-eye">Analysis · Gap & Ranging</div><div class="ph-title"><strong>What's missing</strong> — and who's not buying it</div>
+  <div class="ph-meta"><span class="ph-tag">Definitional zeros filtered</span><span class="ph-tag">Sorted by segment size</span></div></div>
+  <div class="card">
+    <div class="card-hd">
+      <span class="card-ttl">Meaningful gaps</span>
+      <span style="display:flex;gap:6px;flex-wrap:wrap">
+        <select id="gap-store-sel" onchange="renderGaps()" style="font-size:11px;border:.5px solid var(--border);border-radius:4px;padding:3px 8px;background:var(--surface);font-family:var(--sans);">
+          <option value="ALL">All stores</option><option value="13079">13079</option><option value="17436">17436</option><option value="18302">18302</option>
+        </select>
+        <select id="gap-type-sel" onchange="renderGaps()" style="font-size:11px;border:.5px solid var(--border);border-radius:4px;padding:3px 8px;background:var(--surface);font-family:var(--sans);">
+          <option value="ALL">ZERO + GAP</option><option value="ZERO">ZERO only</option><option value="GAP">GAP only</option>
+        </select>
+      </span>
+    </div>
+    <table class="tbl"><thead><tr><th>Sub-group</th><th>Archetype</th><th>Store</th><th class="r">Seg. baskets</th><th class="r">Pen%</th><th class="r">Seg. avg ฿</th><th class="r">฿/unit</th><th class="r">MtM</th><th class="r">YtY</th><th>Type</th></tr></thead><tbody id="gap-tbl-body"></tbody></table>
+  </div>
+  <div class="card">
+    <div class="card-hd"><span class="card-ttl">HML mix by sub-group</span><span class="card-note">from HML_Mix_Overview</span></div>
+    <table class="tbl"><thead><tr><th>Sub-group / PMA</th><th>Store</th><th class="r">H%</th><th class="r">M%</th><th class="r">L%</th><th>Source</th><th>HML bar</th></tr></thead><tbody id="hml-tbl-body"></tbody></table>
+  </div>
+</div>
+
+<!-- LAYOUT CHANGES -->
+<div class="panel" id="p-layout">
+  <div class="ph"><div class="ph-eye">Analysis · Layout Changes</div><div class="ph-title"><strong>Planned changes</strong> — validated against basket behavior</div>
+  <div class="ph-meta"><span class="ph-tag">Source: Layout_บัวนครินทร์.xlsx drawing annotations</span><span class="ph-tag">Cross-referenced with 203,024 baskets + PMA trends</span></div></div>
+  <div class="kpi-strip">
+    <div class="kpi-cell"><div class="kpi-lbl">Total changes</div><div class="kpi-val">14</div><div class="kpi-sub">across 3 stores</div></div>
+    <div class="kpi-cell"><div class="kpi-lbl">Aligned</div><div class="kpi-val" style="color:var(--green)">7</div><div class="kpi-sub">basket signal supports</div></div>
+    <div class="kpi-cell"><div class="kpi-lbl">In tension</div><div class="kpi-val" style="color:var(--amber)">4</div><div class="kpi-sub">mixed or opposed signal</div></div>
+    <div class="kpi-cell"><div class="kpi-lbl">Missing</div><div class="kpi-val" style="color:var(--red)">3</div><div class="kpi-sub">gap unaddressed</div></div>
+  </div>
+  <div class="tabs" id="lc-tabs">
+    <button class="tab active" onclick="showLC('all',this)">All stores</button>
+    <button class="tab" onclick="showLC('13079',this)">13079</button>
+    <button class="tab" onclick="showLC('17436',this)">17436</button>
+    <button class="tab" onclick="showLC('18302',this)">18302</button>
+  </div>
+  <div id="lc-cards"></div>
+</div>
+
+<!-- SHELF VIEW -->
+<div class="panel" id="p-shelves">
+  <div class="ph"><div class="ph-eye">Layout · Shelf View</div><div class="ph-title"><strong>Shelf-level BPSD & growth</strong> — plan vs current</div>
+  <div class="ph-meta"><span class="ph-tag">Hover any shelf for detail</span><span class="ph-tag">BPSD = Baht Per Shelf Day (Mar 2026)</span><span class="ph-tag">MtM bar = growth vs Feb 2026</span></div></div>
+  <div class="card">
+    <div class="card-hd" style="flex-wrap:wrap;gap:8px">
+      <span class="card-ttl">Shelves</span>
+      <span style="display:flex;gap:6px;flex-wrap:wrap">
+        <span class="tabs" style="margin-bottom:0">
+          <button class="tab active" onclick="switchShelfStore('13079',this)">13079</button>
+          <button class="tab" onclick="switchShelfStore('17436',this)">17436</button>
+          <button class="tab" onclick="switchShelfStore('18302',this)">18302</button>
+        </span>
+        <span class="tabs" style="margin-bottom:0">
+          <button class="tab active" onclick="switchShelfFilter('all',this)">All</button>
+          <button class="tab" onclick="switchShelfFilter('changed',this)">Changed</button>
+          <button class="tab" onclick="switchShelfFilter('growing',this)">Growing ↑</button>
+          <button class="tab" onclick="switchShelfFilter('declining',this)">Declining ↓</button>
+        </span>
+      </span>
+    </div>
+    <div class="shelf-hdr">
+      <span>Shelf</span><span>Current (PS)</span><span>Plan</span>
+      <span class="r">BPSD ฿</span><span>MtM bar</span><span class="r">MtM%</span><span>HML</span><span>Flag</span>
+    </div>
+    <div id="shelf-body"><p style="color:var(--text3);font-size:11px;padding:16px 0">Load Layout_บัวนครินทร์.xlsx using the sidebar button.</p></div>
+    <div id="shelf-count" style="margin-top:8px;font-size:10px;color:var(--text3)"></div>
+  </div>
+</div>
+
+</div><!-- /main -->
+
+<script>
+// ═══════════════════════════════════════════════════════════════════
+// DATA — PMA TRENDS (Feb 2026)
+// ═══════════════════════════════════════════════════════════════════
+const TREND = {"13079": {"01 CHILLED BREAD": {"mtm": 0.1276, "yty": 0.6853}, "02 APPETIZER": {"mtm": 0.0204, "yty": 0.0301}, "03 FRUIT & CHILLED DESSERT": {"mtm": 0.0187, "yty": -0.0975}, "05 SI COUNTER DRINK": {"mtm": 0.0381, "yty": -0.1874}, "06 FOOD PLACE": {"mtm": 1.199, "yty": 1.7}, "07 TOASTED SANDWICH & HOT BREAD": {"mtm": 0.119, "yty": -0.0572}, "08 BURGER & HOT DOG": {"mtm": -0.0151, "yty": 0.0147}, "10 BEER AND RTD ALCOHOL": {"mtm": 0.0734, "yty": 0.1908}, "14 HEALTH CARE": {"mtm": -0.0631, "yty": -0.087}, "16 สลัด (Salad)": {"mtm": 0.1009, "yty": 0.1398}, "19 CHILLED MEAL BOX 1": {"mtm": 0.0601, "yty": 0.0647}, "20 FROZEN MEAL BOX": {"mtm": 0.0883, "yty": 0.0227}, "21 SAUSAGE - COLD CUT AND FURTHER": {"mtm": 0.018, "yty": -0.1425}, "22 CHILLED MEAL BOX 2": {"mtm": 0.0473, "yty": 0.0251}, "23 GRILLED SAUSAGE": {"mtm": 0.2662, "yty": 0.0078}, "24 WARMED FOODS": {"mtm": 0.0932, "yty": 0.2438}, "29 UHT MILK": {"mtm": 0.0118, "yty": -0.1975}, "30 PASTEURIZED MILK": {"mtm": 0.0537, "yty": 0.0347}, "31 PASTEURIZED DRINK": {"mtm": 0.1001, "yty": 0.0461}, "32 COOKING AND CANNED FOODS": {"mtm": -0.006, "yty": -0.1348}, "33 INSTANT FOODS": {"mtm": -0.0631, "yty": -0.1132}, "34 PACKAGED FOODS AND DRINKS": {"mtm": 0.0082, "yty": -0.0152}, "38 NON-CARBONATED SOFT DRINK": {"mtm": 0.0267, "yty": -0.0007}, "40 CONFECTIONERY": {"mtm": 0.0739, "yty": -0.0303}, "41 SNACKS": {"mtm": 0.0331, "yty": -0.1227}, "42 CARBONATED SOFT DRINK (CSD)": {"mtm": 0.1418, "yty": -0.0295}, "44 ICE CREAM AND NOVELTIES": {"mtm": 0.1992, "yty": -0.0318}, "45 ICE": {"mtm": 0.1617, "yty": 0.3046}, "49 ENERGY AND SPORT DRINK": {"mtm": 0.0732, "yty": 0.1845}, "50 PERSONAL CARE": {"mtm": -0.0239, "yty": 0.0732}, "51 HOUSEWARE": {"mtm": -0.0471, "yty": -0.3174}, "53 DRUG & HEALTHCARE": {"mtm": -0.1044, "yty": -0.0241}, "54 SANITARY": {"mtm": -0.0153, "yty": -0.1064}, "55 HOUSEHOLD": {"mtm": -0.0354, "yty": -0.1162}, "60 PACKAGE BAKERY": {"mtm": 0.0566, "yty": -0.0835}, "61 SANDWICH BREAD": {"mtm": 0.0714, "yty": -0.0528}, "62 FRESH BAKERY": {"mtm": 2.4297, "yty": 0.2788}, "63 THAI SNACK AND DRY FRUIT": {"mtm": -0.0496, "yty": -0.1023}, "80 VARIETY BAKERY": {"mtm": 0.0866, "yty": -0.329}, "85 READY TO COOK(RTC)": {"mtm": 0.1716, "yty": -0.0489}, "90 PROMOTION PREMIUM": {"mtm": -0.5703, "yty": -0.7746}}, "17436": {"01 CHILLED BREAD": {"mtm": 0.1717, "yty": -0.2767}, "02 APPETIZER": {"mtm": 0.0033, "yty": -0.0356}, "03 FRUIT & CHILLED DESSERT": {"mtm": 0.0317, "yty": -0.2262}, "05 SI COUNTER DRINK": {"mtm": 0.0068, "yty": -0.1653}, "06 FOOD PLACE": {"mtm": 0.2579, "yty": 0.2515}, "07 TOASTED SANDWICH & HOT BREAD": {"mtm": 0.0309, "yty": -0.2619}, "08 BURGER & HOT DOG": {"mtm": -0.047, "yty": -0.2443}, "10 BEER AND RTD ALCOHOL": {"mtm": -0.0567, "yty": -0.305}, "14 HEALTH CARE": {"mtm": -0.1219, "yty": -0.4308}, "16 สลัด (Salad)": {"mtm": 0.0822, "yty": 0.0016}, "19 CHILLED MEAL BOX 1": {"mtm": -0.03, "yty": -0.1069}, "20 FROZEN MEAL BOX": {"mtm": 0.0554, "yty": 0.0206}, "21 SAUSAGE - COLD CUT AND FURTHER": {"mtm": -0.0218, "yty": -0.2497}, "22 CHILLED MEAL BOX 2": {"mtm": 0.1049, "yty": -0.315}, "23 GRILLED SAUSAGE": {"mtm": 0.356, "yty": -0.0993}, "24 WARMED FOODS": {"mtm": 0.3329, "yty": -0.0695}, "29 UHT MILK": {"mtm": 0.0866, "yty": -0.1199}, "30 PASTEURIZED MILK": {"mtm": 0.0285, "yty": -0.0875}, "31 PASTEURIZED DRINK": {"mtm": 0.0475, "yty": -0.2318}, "32 COOKING AND CANNED FOODS": {"mtm": -0.0749, "yty": -0.2591}, "33 INSTANT FOODS": {"mtm": -0.0232, "yty": -0.1816}, "34 PACKAGED FOODS AND DRINKS": {"mtm": 0.1904, "yty": -0.1008}, "38 NON-CARBONATED SOFT DRINK": {"mtm": 0.0551, "yty": -0.0456}, "40 CONFECTIONERY": {"mtm": 0.0835, "yty": -0.2241}, "41 SNACKS": {"mtm": -0.0207, "yty": -0.229}, "42 CARBONATED SOFT DRINK (CSD)": {"mtm": 0.0891, "yty": -0.1649}, "44 ICE CREAM AND NOVELTIES": {"mtm": 0.0912, "yty": -0.2477}, "45 ICE": {"mtm": -0.0065, "yty": -0.2684}, "49 ENERGY AND SPORT DRINK": {"mtm": 0.0636, "yty": -0.0851}, "50 PERSONAL CARE": {"mtm": 0.0418, "yty": -0.173}, "51 HOUSEWARE": {"mtm": -0.057, "yty": -0.4569}, "53 DRUG & HEALTHCARE": {"mtm": -0.1764, "yty": -0.3342}, "54 SANITARY": {"mtm": 0.1514, "yty": -0.0441}, "55 HOUSEHOLD": {"mtm": 0.0761, "yty": -0.3043}, "60 PACKAGE BAKERY": {"mtm": -0.0107, "yty": -0.3674}, "61 SANDWICH BREAD": {"mtm": -0.0294, "yty": -0.3297}, "62 FRESH BAKERY": {"mtm": 0.1808, "yty": null}, "63 THAI SNACK AND DRY FRUIT": {"mtm": -0.1918, "yty": -0.3879}, "80 VARIETY BAKERY": {"mtm": 0.0555, "yty": -0.0227}, "85 READY TO COOK(RTC)": {"mtm": 0.0043, "yty": -0.207}, "90 PROMOTION PREMIUM": {"mtm": -0.9387, "yty": -0.9672}}, "18302": {"01 CHILLED BREAD": {"mtm": -0.1611, "yty": -0.0788}, "02 APPETIZER": {"mtm": 0.0522, "yty": 0.031}, "03 FRUIT & CHILLED DESSERT": {"mtm": -0.0081, "yty": -0.0941}, "05 SI COUNTER DRINK": {"mtm": 0.0655, "yty": -0.0866}, "07 TOASTED SANDWICH & HOT BREAD": {"mtm": 0.004, "yty": -0.1946}, "08 BURGER & HOT DOG": {"mtm": 0.1625, "yty": 0.0616}, "10 BEER AND RTD ALCOHOL": {"mtm": 0.0591, "yty": 0.0609}, "14 HEALTH CARE": {"mtm": -0.2236, "yty": -0.2037}, "16 สลัด (Salad)": {"mtm": -0.0801, "yty": 0.0308}, "19 CHILLED MEAL BOX 1": {"mtm": 0.0013, "yty": 0.0593}, "20 FROZEN MEAL BOX": {"mtm": -0.0001, "yty": -0.1583}, "21 SAUSAGE - COLD CUT AND FURTHER": {"mtm": 0.0825, "yty": -0.038}, "22 CHILLED MEAL BOX 2": {"mtm": 0.0485, "yty": 0.0236}, "23 GRILLED SAUSAGE": {"mtm": 0.4779, "yty": 0.1418}, "24 WARMED FOODS": {"mtm": 0.3876, "yty": 0.2886}, "29 UHT MILK": {"mtm": 0.0308, "yty": 0.0696}, "30 PASTEURIZED MILK": {"mtm": 0.0404, "yty": 0.1196}, "31 PASTEURIZED DRINK": {"mtm": -0.0499, "yty": -0.1109}, "32 COOKING AND CANNED FOODS": {"mtm": -0.0397, "yty": 0.0664}, "33 INSTANT FOODS": {"mtm": 0.0379, "yty": -0.1018}, "34 PACKAGED FOODS AND DRINKS": {"mtm": 0.0559, "yty": -0.1881}, "38 NON-CARBONATED SOFT DRINK": {"mtm": 0.009, "yty": 0.0048}, "40 CONFECTIONERY": {"mtm": 0.0829, "yty": -0.0222}, "41 SNACKS": {"mtm": -0.0022, "yty": -0.175}, "42 CARBONATED SOFT DRINK (CSD)": {"mtm": 0.1469, "yty": -0.0339}, "44 ICE CREAM AND NOVELTIES": {"mtm": 0.0089, "yty": 0.0279}, "45 ICE": {"mtm": 0.0459, "yty": -0.0017}, "49 ENERGY AND SPORT DRINK": {"mtm": -0.0152, "yty": 0.0181}, "50 PERSONAL CARE": {"mtm": 0.041, "yty": 0.045}, "51 HOUSEWARE": {"mtm": -0.2695, "yty": -0.3475}, "53 DRUG & HEALTHCARE": {"mtm": -0.04, "yty": -0.0887}, "54 SANITARY": {"mtm": -0.0732, "yty": -0.0221}, "55 HOUSEHOLD": {"mtm": 0.0122, "yty": -0.0309}, "60 PACKAGE BAKERY": {"mtm": 0.0078, "yty": -0.0484}, "61 SANDWICH BREAD": {"mtm": 0.01, "yty": -0.1292}, "62 FRESH BAKERY": {"mtm": 0.0408, "yty": null}, "63 THAI SNACK AND DRY FRUIT": {"mtm": -0.1216, "yty": -0.2548}, "80 VARIETY BAKERY": {"mtm": -0.0299, "yty": -0.3592}, "85 READY TO COOK(RTC)": {"mtm": -0.0666, "yty": 0.1781}, "90 PROMOTION PREMIUM": {"mtm": -0.7123, "yty": -0.5675}}};
+
+
+const SG_PMA_MAP = {
+  'Bakery':                  ['60 PACKAGE','61 SANDWICH','62 FRESH','80 VARIETY'],
+  'Chilled Meal':            ['19 CHILLED MEAL','22 CHILLED MEAL'],
+  'Counter Food Place':      ['06 FOOD PLACE','07 TOASTED','23 GRILLED','24 WARMED'],
+  'Dairy & Pasteurized Drink':['29 UHT','30 PASTEURIZED MILK','31 PASTEURIZED DRINK'],
+  'Soft Drink':              ['42 CARBONATED','38 NON-CARBONATED'],
+  'Snack':                   ['41 SNACKS','63 THAI SNACK'],
+  'Grocery':                 ['32 COOKING','33 INSTANT','34 PACKAGED FOODS'],
+  'Personal Care':           ['50 PERSONAL CARE'],
+  'Household & Paper':       ['51 HOUSEWARE','55 HOUSEHOLD'],
+  'Alcoholic Beverage':      ['10 BEER','11 LIQUOR'],
+  'Delicatessen':            ['02 APPETIZER','21 SAUSAGE'],
+  'Chilled Dessert & Bread': ['01 CHILLED BREAD','03 FRUIT','08 BURGER'],
+  'Frozen & RTC':            ['20 FROZEN','85 READY TO COOK'],
+  'All Care Pharmacy':       ['14 HEALTH CARE','53 DRUG'],
+  'Sanitary':                ['54 SANITARY'],
+  'Confectionery':           ['40 CONFECTIONERY'],
+};
+
+
+// ═══════════════════════════════════════════════════════════════════
+// DATA — LAYOUT CHANGES
+// ═══════════════════════════════════════════════════════════════════
+const LAYOUT_CHANGES = [
+  // ── 13079 ──
+  {
+    store: '13079',
+    change: 'Personal Care & Health zone expansion (pink-highlighted shelves)',
+    detail: 'Full planogram for PMA50 beauty zone: ย้อมผม, ยาสระผม, ครีมอาบน้ำ, โรลออน, ครีมบำรุง, ผู้ชาย, เวชสำอางค์, ครีมซอง89. Plus health zone: ยาสามัญ, ไฟเบอร์, วิตามิน, ช่องปาก, ล้างหน้า.',
+    basket_signal: 'Household / Personal Care is <strong>2.4% of baskets, avg ฿94</strong>. Low volume, low spend. No growth signal in basket data to justify significant shelf expansion.',
+    verdict: 'tension',
+    verdict_text: 'Tension',
+    metrics: ['2.4% of baskets','฿94 avg spend','2.4% across all 3 stores'],
+    pmas: ['Personal Care','Household & Paper','All Care Pharmacy'],
+  },
+  {
+    store: '13079',
+    change: 'เตาอบคัดสรร — premium oven/bakery items added',
+    detail: 'New label appearing in plan layout for a premium baked goods section.',
+    basket_signal: 'Bakery has <strong>ZERO penetration in Beverage Top-Up</strong> (10,918 baskets) and only <strong>8% in Morning Routine</strong>. Bakery is completely absent from the current 13079 layout — this addresses the most critical gap.',
+    verdict: 'aligned',
+    verdict_text: 'Aligned',
+    metrics: ['10,918 Bev Top-Up baskets','0% bakery penetration','8% Morning Routine pen.'],
+    pmas: ['Bakery'],
+  },
+  {
+    store: '13079',
+    change: 'ICE section relabelled / counter drink zone clarified',
+    detail: 'Shelf 610: ICE label in plan, counter Drink in PS. Minor zone clarification.',
+    basket_signal: 'Counter Drink (PMA30/31) has <strong>11% penetration in Morning Routine</strong> — present but not fully converting. Labelling improvement may help visibility.',
+    verdict: 'aligned',
+    verdict_text: 'Aligned',
+    metrics: ['11% Morning Routine penetration','฿157 avg morning spend'],
+    pmas: ['Dairy & Pasteurized Drink','Counter Food Place'],
+  },
+  {
+    store: '13079',
+    change: 'ไวน์ shelf — split from PMA51 pairing',
+    detail: 'Wine previously labelled "ไวน์ + PMA 51". Plan separates wine to standalone shelf, freeing PMA51 space.',
+    basket_signal: 'Alcoholic Beverage is an irrelevant gap category by our filter — not a primary basket driver. PMA51 (Houseware) is also low-contribution. Neutral move.',
+    verdict: 'tension',
+    verdict_text: 'Neutral',
+    metrics: ['Alcoholic Bev: irrelevant cross-sell','PMA51 low basket frequency'],
+    pmas: ['Alcoholic Beverage','Household & Paper'],
+  },
+  {
+    store: '13079',
+    change: 'Bakery (PMA60/61) — NOT addressed in plan',
+    detail: 'No Bakery shelf appears in either plan or PS layout for 13079. This is a missing addition, not a planned change.',
+    basket_signal: '<strong>Critical unaddressed gap.</strong> Bakery is ZERO in Beverage Top-Up (10,918 baskets) — the community\'s single largest upsell opportunity. 13079 has the highest basket volume (104,999). Not ranging bakery here is leaving the most money on the table.',
+    verdict: 'missing',
+    verdict_text: 'Missing',
+    metrics: ['104,999 baskets','10,918 Bev Top-Up','0% bakery penetration'],
+    pmas: ['Bakery'],
+  },
+
+  // ── 17436 ──
+  {
+    store: '17436',
+    change: 'เอาตู้ไวน์ออก เพิ่ม opt 2 บาน — Remove wine cooler, add 2-door open cooler',
+    detail: 'Wine cooler removed and replaced with open-type 2-door cooler. Likely expands chilled food or beverage capacity.',
+    basket_signal: '17436 leads fresh penetration at <strong>48%</strong>. Expanding chilled capacity aligns with its role as the fresh anchor store. Open cooler gives better product visibility for fresh items.',
+    verdict: 'aligned',
+    verdict_text: 'Aligned',
+    metrics: ['48% fresh penetration','฿191 Fresh-Led Mixed avg','Highest ABV ฿131'],
+    pmas: ['Chilled Meal','Dairy & Pasteurized Drink','Frozen & RTC'],
+  },
+  {
+    store: '17436',
+    change: 'เพิ่ม opt กลางร้าน ตัดหัวเชลฟ์ออกเพิ่มทางเดิน — Mid-store cooler, widen aisles',
+    detail: 'Add open-type cooler in middle of store. Cut shelf ends to create wider walking path. Significant physical layout change.',
+    basket_signal: 'Counter Food Place has <strong>4.9% penetration in Fresh-Led Mixed</strong> despite being ranged. Wider aisles improve flow between fresh zone and counter food — directly addresses the physical separation hypothesis.',
+    verdict: 'aligned',
+    verdict_text: 'Aligned',
+    metrics: ['4.9% Counter Food penetration','31,573 Fresh-Led Mixed baskets','Physical separation likely cause'],
+    pmas: ['Counter Food Place'],
+  },
+  {
+    store: '17436',
+    change: 'เอาตั้งกองออก — display ขนมปัง KS — Remove floor display, add KS bread display',
+    detail: 'Floor product display removed. Replaced with Kudsan fresh bread display.',
+    basket_signal: 'Bakery has <strong>6% penetration in Quick Drink</strong> (6,381 baskets) and gaps in Morning Routine. 17436 already has Kudsan bakery ranged — this improves its prominence. Directly addresses Morning Routine bakery gap.',
+    verdict: 'aligned',
+    verdict_text: 'Aligned',
+    metrics: ['6% Quick Drink bakery pen.','2,381 Morning Routine baskets','฿144 Morning Routine avg'],
+    pmas: ['Bakery'],
+  },
+  {
+    store: '17436',
+    change: 'counyer food place อันเล็กๆ — Add small counter food unit',
+    detail: 'Small counter food place added. Likely a warmer or small hot food station.',
+    basket_signal: 'Counter Food Place has <strong>ZERO penetration in Beverage Top-Up</strong> (5,471 baskets) at 17436. Adding a counter food unit in a more accessible location converts beverage-only trips.',
+    verdict: 'aligned',
+    verdict_text: 'Aligned',
+    metrics: ['5,471 Bev Top-Up baskets','0% Counter Food penetration','฿71 avg Bev Top-Up'],
+    pmas: ['Counter Food Place'],
+  },
+  {
+    store: '17436',
+    change: 'เพิ่มที่นั่ง — Add seating',
+    detail: 'Seating area to be added in store.',
+    basket_signal: 'Morning Routine is <strong>4.8% of baskets, ฿144 avg</strong>. Seating encourages dwell time, increases likelihood of adding bakery/food items. Indirect support — not directly measurable from basket data alone.',
+    verdict: 'aligned',
+    verdict_text: 'Aligned',
+    metrics: ['4.8% Morning Routine','฿144 avg spend','Dwell time → basket size correlation'],
+    pmas: ['Bakery','Counter Food Place'],
+  },
+  {
+    store: '17436',
+    change: 'Personal Care zone expansion (pink-highlighted PMA50)',
+    detail: 'PMA50 shelves detailed out: โลชั่น, ครีมอาบน้ำ, ยาสระผม, สีผม, ผู้ชาย, ยาสีฟัน, PMA14, PMA89.',
+    basket_signal: 'Household / Personal Care is only <strong>2.4% of baskets, avg ฿92</strong> at 17436. Same tension as 13079 — heavy shelf allocation to a low-volume category.',
+    verdict: 'tension',
+    verdict_text: 'Tension',
+    metrics: ['2.4% of baskets','฿92 avg spend','1,180 baskets total'],
+    pmas: ['Personal Care','Household & Paper'],
+  },
+
+  // ── 18302 ──
+  {
+    store: '18302',
+    change: 'Add ตู้เบียร์สิงห์ + เบียร์ลัง — Add Singha beer cooler + beer crate display',
+    detail: 'Singha beer cooler added. Beer crate floor display added (shelf 620 in plan, absent in PS).',
+    basket_signal: 'Beverage Top-Up is <strong>11.1% of baskets</strong> at 18302 — already the store\'s dominant identity. Adding beer fixtures reinforces this but does <strong>NOT address the conversion gap</strong>: Beverage Top-Up has ZERO bakery and ZERO chilled meal penetration across 5,375 baskets.',
+    verdict: 'tension',
+    verdict_text: 'Tension',
+    metrics: ['5,375 Bev Top-Up baskets','0% bakery penetration','0% chilled meal penetration'],
+    pmas: ['Alcoholic Beverage','Bakery'],
+  },
+  {
+    store: '18302',
+    change: 'เพิ่มเนื้อสัตว์แช่เย็น — Add chilled (not frozen) meat section',
+    detail: 'New chilled meat section planned. Currently only frozen meat is ranged (shelves 608, 611).',
+    basket_signal: '18302 already has <strong>46% fresh penetration and ฿146 ABV</strong> (highest in community). Fresh-Led Mixed here averages ฿217 — the highest. Adding chilled meat expands the fresh offer for already high-value fresh customers.',
+    verdict: 'aligned',
+    verdict_text: 'Aligned',
+    metrics: ['฿217 Fresh-Led Mixed avg','46% fresh penetration','฿146 highest community ABV'],
+    pmas: ['Frozen & RTC','Delicatessen'],
+  },
+  {
+    store: '18302',
+    change: 'Shelf 683: PMA38 Fruit drink → PMA29 UHT Milk',
+    detail: 'One shelf converted from fruit drink (PMA38) to UHT milk (PMA29).',
+    basket_signal: 'Dairy & Pasteurized Drink has <strong>ZERO penetration in Morning Routine</strong> at 18302. Morning Routine customers spend ฿169 avg — the highest value morning segment in the community. Directly addresses the most valuable time-slot gap.',
+    verdict: 'aligned',
+    verdict_text: 'Aligned',
+    metrics: ['0% Dairy in Morning Routine','฿169 Morning Routine avg','High-value morning segment'],
+    pmas: ['Dairy & Pasteurized Drink'],
+  },
+  {
+    store: '18302',
+    change: 'Bakery — not addressed in plan',
+    detail: 'No new bakery shelf appears in 18302 plan despite Bakery being ZERO in Beverage Top-Up.',
+    basket_signal: '<strong>5,375 Beverage Top-Up baskets with 0% bakery penetration.</strong> Beer cooler added but no bakery adjacency planned. If beer display is near entrance/beverage zone, a small bakery rack nearby would convert impulse add-ons.',
+    verdict: 'missing',
+    verdict_text: 'Missing',
+    metrics: ['5,375 Bev Top-Up baskets','0% bakery penetration','Beer cooler added but no bakery nearby'],
+    pmas: ['Bakery'],
+  },
+];
+
+
+// ═══════════════════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════════════════
+const SC = {'13079':'#1A4FBF','17436':'#0A6640','18302':'#8C3A1A'};
+const ARCH_COLORS = {
+  'Fresh-Led Mixed':'#0A6640','Quick Drink':'#1A4FBF','Big Mixed Shop':'#6B3FA0',
+  'Beverage Top-Up':'#8C3A1A','Necessity Run':'#8C5200','Fresh Grab':'#0F6E4A',
+  'Snack / Processed':'#C0401A','Other Mixed':'#9A9791','Morning Routine':'#1A6BB5',
+  'Household / Personal Care':'#5A3E8C'
+};
+const SINGLE_CAT = new Set(['Quick Drink','Fresh Grab','Necessity Run','Snack / Processed']);
+const ARCH_SG = {
+  'Fresh-Led Mixed':      new Set(['Bakery','Chilled Meal','Dairy & Pasteurized Drink','Counter Food Place','Delicatessen','Chilled Dessert & Bread','Soft Drink','Snack','Confectionery']),
+  'Beverage Top-Up':      new Set(['Bakery','Snack','Chilled Dessert & Bread','Counter Food Place','Chilled Meal','Soft Drink','Confectionery','Grocery']),
+  'Morning Routine':      new Set(['Bakery','Dairy & Pasteurized Drink','Counter Food Place','Chilled Meal','Chilled Dessert & Bread','Soft Drink']),
+  'Big Mixed Shop':       new Set(['Bakery','Chilled Meal','Dairy & Pasteurized Drink','Counter Food Place','Delicatessen','Chilled Dessert & Bread','Snack','Confectionery','Personal Care','Household & Paper','Grocery']),
+  'Household / Personal Care': new Set(['Personal Care','Household & Paper','All Care Pharmacy','Grocery','Snack']),
+  'Other Mixed':          new Set(['Bakery','Chilled Meal','Soft Drink','Snack','Confectionery','Counter Food Place','Grocery']),
+};
+const IRREL = new Set(['Cigarette','Alcoholic Beverage','All Care Pharmacy','Variety & Connect & Publication','Ice Cream & Ice','Frozen & RTC','Kudsan']);
+
+let DATA = {arch:{},time:{},scatter:[],gaps:[],hml:[],vol:{},quadrant:[]};
+let SHELF_DATA = {};
+let shelfStore = '13079', shelfFilter = 'all';
+let charts = {};
+let currentQ = 'Q1';
+
+// ═══════════════════════════════════════════════════════════════════
+// UTILITIES
+// ═══════════════════════════════════════════════════════════════════
+function mkChart(id, cfg) {
+  if (charts[id]) charts[id].destroy();
+  const c = document.getElementById(id);
+  if (c) charts[id] = new Chart(c, cfg);
+}
+
+function pct(v, d=1) {
+  if (v == null) return '—';
+  const s = (v*100).toFixed(d);
+  return (v>=0?'+':'')+s+'%';
+}
+
+function tBadge(v) {
+  if (v == null) return '<span style="font-size:9px;color:var(--text3)">—</span>';
+  const p = (v*100).toFixed(1), s = v>=0?'+':'';
+  const cls = v>0.05?'tb-pos':v<-0.05?'tb-neg':'tb-neu';
+  return '<span class="'+cls+'">'+s+p+'%</span>';
+}
+
+function getTrend(storeId, subGroup) {
+  const td = TREND[storeId]; if (!td) return null;
+  const kws = SG_PMA_MAP[subGroup]; if (!kws || !kws.length) return null;
+  const ms=[], ys=[];
+  for (const [pma,v] of Object.entries(td)) {
+    for (const kw of kws) {
+      if (pma.toUpperCase().includes(kw.toUpperCase())) {
+        if (v.mtm!=null) ms.push(v.mtm);
+        if (v.yty!=null) ys.push(v.yty);
+      }
+    }
+  }
+  const avg = a => a.length ? a.reduce((x,y)=>x+y,0)/a.length : null;
+  if (!ms.length && !ys.length) return null;
+  return {mtm:avg(ms), yty:avg(ys)};
+}
+
+function getTrendForStore(storeId) {
+  const td = TREND[storeId]; if (!td) return [];
+  return Object.entries(td)
+    .filter(([,v])=>v.mtm!=null||v.yty!=null)
+    .map(([pma,v])=>({pma,mtm:v.mtm,yty:v.yty}))
+    .sort((a,b)=>(b.yty||0)-(a.yty||0));
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// NAV
+// ═══════════════════════════════════════════════════════════════════
+function nav(el) {
+  document.querySelectorAll('.ni').forEach(n=>n.classList.remove('active'));
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  el.classList.add('active');
+  const pid = 'p-'+el.dataset.p;
+  document.getElementById(pid).classList.add('active');
+  if (el.dataset.p==='scatter') renderScatter();
+  if (el.dataset.p==='gaps') renderGaps();
+  if (el.dataset.p==='layout') renderLC('all');
+  if (el.dataset.p==='shelves') renderShelves();
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// FILE LOADERS
+// ═══════════════════════════════════════════════════════════════════
+document.getElementById('f-basket').addEventListener('change', function(e) {
+  const file = e.target.files[0]; if (!file) return;
+  document.getElementById('st-basket').textContent = 'Parsing…';
+  const reader = new FileReader();
+  reader.onload = ev => {
+    try {
+      const wb = XLSX.read(ev.target.result, {type:'array'});
+      parseBasket(wb);
+      document.getElementById('st-basket').textContent = 'Basket data ✓';
+      document.getElementById('st-basket').style.color = '#6EE7B7';
+      renderAll();
+    } catch(err) {
+      document.getElementById('st-basket').textContent = 'Error: '+err.message;
+      console.error(err);
+    }
+  };
+  reader.readAsArrayBuffer(file);
+});
+
+document.getElementById('f-layout').addEventListener('change', function(e) {
+  const file = e.target.files[0]; if (!file) return;
+  document.getElementById('st-layout').textContent = 'Parsing…';
+  const reader = new FileReader();
+  reader.onload = ev => {
+    try {
+      const wb = XLSX.read(ev.target.result, {type:'array'});
+      parseLayout(wb);
+      document.getElementById('st-layout').textContent = 'Layout data ✓';
+      document.getElementById('st-layout').style.color = '#6EE7B7';
+      renderShelves();
+    } catch(err) {
+      document.getElementById('st-layout').textContent = 'Error: '+err.message;
+      console.error(err);
+    }
+  };
+  reader.readAsArrayBuffer(file);
+});
+
+function parseBasket(wb) {
+  const js = n => XLSX.utils.sheet_to_json(wb.Sheets[n]||{});
+  const arch = js('Archetype_Summary');
+  DATA.arch = {};
+  arch.forEach(r => { const s=String(r.store_id); if(!DATA.arch[s]) DATA.arch[s]=[]; DATA.arch[s].push(r); });
+  const time = js('TimeSlot_Summary');
+  DATA.time = {};
+  time.forEach(r => { const s=String(r.store_id); if(!DATA.time[s]) DATA.time[s]=[]; DATA.time[s].push(r); });
+  DATA.scatter = js('Scatter_Data').map(r=>({...r,store_id:String(r.store_id)}));
+  DATA.quadrant = js('Quadrant_Summary').map(r=>({...r,store_id:String(r.store_id)}));
+  DATA.hml = js('HML_Overview').map(r=>({...r,store_id:String(r.store_id)})).filter(r=>['13079','17436','18302'].includes(r.store_id)&&r.pma!=='ALL');
+  const vol = js('SubGroup_Volume');
+  DATA.vol = {};
+  vol.forEach(r => { const s=String(r.store_id); if(!DATA.vol[s]) DATA.vol[s]=[]; DATA.vol[s].push(r); });
+  const IRREL_ARCH = new Set(['Quick Drink','Fresh Grab','Necessity Run','Snack / Processed']);
+  DATA.gaps = js('Gap_Analysis')
+    .map(r=>({...r,store_id:String(r.store_id)}))
+    .filter(r => {
+      if (!r.gap_type || r.gap_type==='') return false;
+      if (IRREL_ARCH.has(r.archetype) && r.gap_type==='ZERO') return false;
+      if (IRREL.has(r.sub_group)) return false;
+      if (ARCH_SG[r.archetype] && !ARCH_SG[r.archetype].has(r.sub_group)) return false;
+      return true;
+    });
+}
+
+function parseLayout(wb) {
+  const stores = [
+    {id:'13079', dataSheet:'13079 data', planSheet:'13079_plan', psSheet:'13079_ps', mode:'13079'},
+    {id:'17436', dataSheet:'data 17436',  planSheet:'17436_plan', psSheet:'17436_ps', mode:'std'},
+    {id:'18302', dataSheet:'data 18302',  planSheet:'18302_plan', psSheet:'18302_ps', mode:'std'},
+  ];
+  SHELF_DATA = {};
+  for (const s of stores) {
+    if (!wb.Sheets[s.dataSheet]||!wb.Sheets[s.planSheet]||!wb.Sheets[s.psSheet]) continue;
+    const dataRows = XLSX.utils.sheet_to_json(wb.Sheets[s.dataSheet],{header:1});
+    const shelfMap = {};
+    for (let i=1;i<dataRows.length;i++) {
+      const row=dataRows[i];
+      let shelf,bpsd,mtm,hml;
+      if (s.mode==='13079') { shelf=row[2];bpsd=row[5];mtm=row[8];hml=row[7]; }
+      else { shelf=row[1];bpsd=row[5];mtm=row[8];hml=row[7]; }
+      if (typeof shelf==='number'&&shelf>=400&&shelf<=900) {
+        shelfMap[Math.round(shelf)]={bpsd:typeof bpsd==='number'?Math.round(bpsd):null,mtm:typeof mtm==='number'?mtm:null,hml:hml||null};
+      }
+    }
+    function labels(sheetName) {
+      const rows=XLSX.utils.sheet_to_json(wb.Sheets[sheetName],{header:1}); const out={};
+      for (let r=0;r<rows.length;r++) { const row=rows[r]||[];
+        for (let c=0;c<row.length;c++) { const v=row[c];
+          if (typeof v==='number'&&v>=400&&v<=900) { const sh=Math.round(v); if(out[sh]) continue;
+            let label=null;
+            for (let dr=-2;dr<=2&&!label;dr++) for (let dc=-2;dc<=2&&!label;dc++) {
+              const nr=r+dr,nc=c+dc;
+              if (nr>=0&&nr<rows.length&&rows[nr]&&nc>=0&&nc<rows[nr].length) {
+                const v2=rows[nr][nc];
+                if (typeof v2==='string'&&v2.trim()&&!v2.startsWith('=')&&v2.trim()!=='\xa0') label=v2.trim();
+              }
+            }
+            out[sh]=label;
+          }
+        }
+      }
+      return out;
+    }
+    const pl=labels(s.planSheet), ps=labels(s.psSheet);
+    const all=[...new Set([...Object.keys(pl),...Object.keys(ps)])].map(Number).sort((a,b)=>a-b);
+    SHELF_DATA[s.id]=all.map(sh=>{
+      const d=shelfMap[sh]||{}, p=pl[sh]||null, c=ps[sh]||null;
+      return {shelf:sh,plan:p,ps:c,changed:!!(p&&c&&p!==c),planOnly:!!(p&&!c),psOnly:!!(!p&&c),bpsd:d.bpsd,mtm:d.mtm,hml:d.hml};
+    });
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// RENDER ALL
+// ═══════════════════════════════════════════════════════════════════
+function renderAll() {
+  renderCommunity();
+  ['13079','17436','18302'].forEach(s => renderStore(s));
+  requestAnimationFrame(()=>{
+    ['13079','17436','18302'].forEach(s => renderStoreTimeChart(s));
+    renderScatter();
+    renderGaps();
+    renderLC('all');
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// COMMUNITY
+// ═══════════════════════════════════════════════════════════════════
+function renderCommunity() {
+  const stores=['13079','17436','18302'];
+  let totB=0,totR=0,freshB=0;
+  const archT={};
+  stores.forEach(sid=>{
+    const rows=DATA.arch[sid]||[];
+    rows.forEach(r=>{ totB+=r.basket_count; totR+=r.basket_count*r.avg_spend; archT[r.archetype]=(archT[r.archetype]||0)+r.basket_count; });
+    if(rows[0]) freshB+=rows[0].store_fresh_pct/100*rows[0].store_total_baskets;
+  });
+  document.getElementById('ov-b').textContent=totB.toLocaleString();
+  document.getElementById('ov-abv').textContent='฿'+(totR/totB).toFixed(1);
+  document.getElementById('ov-fresh').textContent=(freshB/totB*100).toFixed(0)+'%';
+  const top=Object.entries(archT).sort((a,b)=>b[1]-a[1])[0];
+  document.getElementById('ov-arch').textContent=top?top[0]:'—';
+
+  const archs=Object.keys(ARCH_COLORS);
+  document.getElementById('leg-arch-ov').innerHTML=stores.map(s=>`<span class="leg-i"><span class="leg-sq" style="background:${SC[s]}"></span>${s}</span>`).join('');
+  mkChart('ch-arch-ov',{type:'bar',data:{labels:archs.map(a=>a.length>14?a.slice(0,14)+'…':a),datasets:stores.map(s=>({label:s,data:archs.map(a=>{const r=(DATA.arch[s]||[]).find(x=>x.archetype===a);return r?r.pct_of_store:0;}),backgroundColor:SC[s]+'BB',borderColor:SC[s],borderWidth:1,borderRadius:3}))},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{display:false},ticks:{font:{size:9,family:'"DM Mono"'}, maxRotation:30}},y:{grid:{color:'rgba(0,0,0,0.05)'},ticks:{font:{size:10,family:'"DM Mono"'}, callback:v=>v+'%'}}}}});
+
+  const slots=['Morning (6-10)','Midday (10-14)','Afternoon (14-18)','Evening (18-22)','Late Night (22-24)'];
+  mkChart('ch-time-ov',{type:'bar',data:{labels:['6–10','10–14','14–18','18–22','22–24'],datasets:stores.map(s=>({label:s,data:slots.map(sl=>{const r=(DATA.time[s]||[]).find(x=>x.time_slot===sl);return r?r.pct_of_store:0;}),backgroundColor:SC[s]+'BB',borderColor:SC[s],borderWidth:0,borderRadius:2,stack:'a'}))},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{stacked:true,grid:{display:false},ticks:{font:{size:10,family:'"DM Mono"'}}},y:{stacked:true,grid:{color:'rgba(0,0,0,0.05)'},ticks:{font:{size:10,family:'"DM Mono"'}, callback:v=>v+'%'}}}}});
+
+  const maxABV=Math.max(...stores.map(s=>(DATA.arch[s]||[])[0]?.store_abv||0));
+  document.getElementById('cmp-tbl').innerHTML=`<thead><tr><th>Metric</th>${stores.map(s=>`<th style="text-align:right">${s}</th>`).join('')}</tr></thead><tbody>`+
+    [['store_total_baskets','Total baskets',v=>v.toLocaleString()],['store_abv','ABV (฿)',v=>'฿'+v.toFixed(1)],['store_fresh_pct','Fresh %',v=>v.toFixed(0)+'%']].map(([k,lbl,fmt])=>
+      `<tr><td>${lbl}</td>${stores.map(s=>{const v=(DATA.arch[s]||[])[0]?.[k]||0;return `<td style="font-family:var(--mono);text-align:right">${fmt(v)}</td>`;}).join('')}</tr>`
+    ).join('')+'</tbody>';
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// STORE PANELS
+// ═══════════════════════════════════════════════════════════════════
+function renderStore(sid) {
+  const el=document.getElementById('c-'+sid); if(!el) return;
+  const rows=DATA.arch[sid]||[];
+  if (!rows.length) { el.innerHTML='<p style="color:var(--text3);padding:40px 0">Load basket_analysis_output.xlsx</p>'; return; }
+  const meta=rows[0], maxPct=Math.max(...rows.map(r=>r.pct_of_store));
+  const names={'13079':'บัวนครินทร์ 1','17436':'บัวนครินทร์ 2','18302':'บัวนครินทร์ 3'};
+  const storeGaps=[...DATA.gaps].filter(r=>r.store_id===sid).sort((a,b)=>{const o={'ZERO':0,'⚠ GAP':1};return (o[a.gap_type]??2)-(o[b.gap_type]??2)||b.basket_count-a.basket_count;}).slice(0,12);
+  const volRows=(DATA.vol[sid]||[]).slice(0,10);
+  const trend=getTrendForStore(sid);
+
+  el.innerHTML=`
+    <div class="ph"><div class="ph-eye">Store ${sid} · ${names[sid]}</div><div class="ph-title"><strong>Basket Analysis</strong></div></div>
+    <div class="kpi-strip">
+      <div class="kpi-cell"><div class="kpi-lbl">Baskets</div><div class="kpi-val">${meta.store_total_baskets.toLocaleString()}</div><div class="kpi-sub">receipts</div></div>
+      <div class="kpi-cell"><div class="kpi-lbl">Avg basket value</div><div class="kpi-val">฿${meta.store_abv.toFixed(1)}</div><div class="kpi-sub">ex-VAT</div></div>
+      <div class="kpi-cell"><div class="kpi-lbl">Fresh penetration</div><div class="kpi-val">${meta.store_fresh_pct.toFixed(0)}%</div><div class="kpi-sub">of baskets</div></div>
+      <div class="kpi-cell"><div class="kpi-lbl">Top archetype</div><div class="kpi-val" style="font-size:14px">${rows[0].archetype}</div><div class="kpi-sub">${rows[0].pct_of_store}%</div></div>
+    </div>
+    <div class="g3-2">
+      <div class="card" style="margin-bottom:0">
+        <div class="card-hd"><span class="card-ttl">Basket archetypes</span><span class="card-note">% · avg ฿ · value tier</span></div>
+        <div class="arch-list">${[...rows].sort((a,b)=>b.pct_of_store-a.pct_of_store).map(r=>`
+          <div class="arch-row">
+            <span class="arch-name">${r.archetype}</span>
+            <div class="arch-track"><div class="arch-fill" style="width:${Math.round(r.pct_of_store/maxPct*100)}%;background:${SC[sid]}"></div></div>
+            <span class="arch-pct">${r.pct_of_store}%</span>
+            <span class="arch-spend">฿${r.avg_spend}</span>
+            <span class="vt vt${r.value_tier}">${r.value_tier}</span>
+          </div>`).join('')}
+        </div>
+      </div>
+      <div class="card" style="margin-bottom:0">
+        <div class="card-hd"><span class="card-ttl">Time slot distribution</span></div>
+        <div style="position:relative;height:200px"><canvas id="ch-t-${sid}"></canvas></div>
+      </div>
+    </div>
+    <div style="height:14px"></div>
+    <div class="g2">
+      <div class="card" style="margin-bottom:0">
+        <div class="card-hd"><span class="card-ttl">Gaps — meaningful</span><span class="card-note">filtered</span></div>
+        <table class="tbl"><thead><tr><th>Sub-group</th><th>Archetype</th><th class="r">Baskets</th><th class="r">Pen%</th><th class="r">MtM</th><th class="r">YtY</th><th>Type</th></tr></thead>
+        <tbody>${storeGaps.map(r=>{const t=getTrend(sid,r.sub_group);return `<tr>
+          <td class="tn">${r.sub_group}</td><td class="ta">${r.archetype}</td>
+          <td class="r" style="font-family:var(--mono)">${Number(r.basket_count).toLocaleString()}</td>
+          <td class="r" style="font-family:var(--mono)">${r.penetration_pct}%</td>
+          <td class="r">${tBadge(t&&t.mtm)}</td><td class="r">${tBadge(t&&t.yty)}</td>
+          <td><span class="badge ${r.gap_type==='ZERO'?'bz':'bg'}">${r.gap_type}</span></td>
+        </tr>`;}).join('')}</tbody></table>
+      </div>
+      <div class="card" style="margin-bottom:0">
+        <div class="card-hd"><span class="card-ttl">Sub-group revenue</span><span class="card-note">top 10</span></div>
+        <table class="tbl"><thead><tr><th>Sub-group</th><th class="r">Revenue ฿</th><th class="r">฿/basket</th><th class="r">MtM</th><th class="r">YtY</th></tr></thead>
+        <tbody>${volRows.map(r=>{const t=getTrend(sid,r.sub_group);return `<tr>
+          <td class="tn">${r.sub_group}</td>
+          <td class="r" style="font-family:var(--mono)">${Number(r.total_revenue).toLocaleString()}</td>
+          <td class="r" style="font-family:var(--mono)">฿${r.revenue_per_basket}</td>
+          <td class="r">${tBadge(t&&t.mtm)}</td><td class="r">${tBadge(t&&t.yty)}</td>
+        </tr>`;}).join('')}</tbody></table>
+      </div>
+    </div>
+    <div style="height:14px"></div>
+    <div class="card" style="margin-bottom:0">
+      <div class="card-hd"><span class="card-ttl">PMA growth — all categories</span><span class="card-note">Feb 2026 · YtY sorted</span></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:0">
+        <div style="padding-right:14px;border-right:.5px solid var(--border)">
+          <div style="font-size:9px;font-weight:500;text-transform:uppercase;letter-spacing:.07em;color:var(--green);margin-bottom:7px">Growing YtY</div>
+          ${trend.filter(r=>r.yty>0.05).slice(0,8).map(r=>`<div style="display:flex;align-items:center;justify-content:space-between;padding:3px 0;border-bottom:.5px solid var(--border);font-size:11px"><span style="color:var(--text2)">${r.pma}</span><span style="display:flex;gap:5px">${tBadge(r.mtm)}${tBadge(r.yty)}</span></div>`).join('')}
+        </div>
+        <div style="padding-left:14px">
+          <div style="font-size:9px;font-weight:500;text-transform:uppercase;letter-spacing:.07em;color:var(--red);margin-bottom:7px">Declining YtY</div>
+          ${[...trend].filter(r=>r.yty<-0.05).reverse().slice(0,8).map(r=>`<div style="display:flex;align-items:center;justify-content:space-between;padding:3px 0;border-bottom:.5px solid var(--border);font-size:11px"><span style="color:var(--text2)">${r.pma}</span><span style="display:flex;gap:5px">${tBadge(r.mtm)}${tBadge(r.yty)}</span></div>`).join('')}
+        </div>
+      </div>
+    </div>`;
+}
+
+function renderStoreTimeChart(sid) {
+  const slots=['Morning (6-10)','Midday (10-14)','Afternoon (14-18)','Evening (18-22)','Late Night (22-24)'];
+  const tRows=DATA.time[sid]||[];
+  mkChart('ch-t-'+sid,{type:'bar',data:{labels:['6–10','10–14','14–18','18–22','22–24'],datasets:[{data:slots.map(sl=>{const r=tRows.find(x=>x.time_slot===sl);return r?r.pct_of_store:0;}),backgroundColor:SC[sid]+'33',borderColor:SC[sid],borderWidth:1.5,borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{display:false},ticks:{font:{size:10,family:'"DM Mono"'}}},y:{grid:{color:'rgba(0,0,0,0.05)'},ticks:{font:{size:10,family:'"DM Mono"'}, callback:v=>v+'%'}}}}});
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// SCATTER
+// ═══════════════════════════════════════════════════════════════════
+function renderScatter() {
+  const sf=document.getElementById('scatter-store-sel')?.value||'ALL';
+  let rows=DATA.scatter;
+  if (sf!=='ALL') rows=rows.filter(r=>r.store_id===sf);
+  if (!rows.length) return;
+  const archs=[...new Set(rows.map(r=>r.archetype))];
+  document.getElementById('leg-scatter').innerHTML=archs.map(a=>`<span class="leg-i"><span class="leg-sq" style="background:${ARCH_COLORS[a]||'#888'}"></span>${a}</span>`).join('');
+  const maxB=Math.max(...rows.map(r=>r.basket_count));
+  mkChart('ch-scatter',{type:'bubble',data:{datasets:archs.map(a=>({label:a,data:rows.filter(r=>r.archetype===a).map(r=>({x:r.x_centred,y:r.y_centred,r:Math.max(5,Math.sqrt(r.basket_count/maxB)*44),raw_x:r.median_pma_groups,raw_y:r.median_unit_price,basket_count:r.basket_count,store_id:r.store_id,avg_spend:r.avg_spend,value_tier:r.value_tier,archetype:a})),backgroundColor:(ARCH_COLORS[a]||'#888')+'70',borderColor:ARCH_COLORS[a]||'#888',borderWidth:1.5}))},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>{const d=ctx.raw;return [`${d.archetype} · Store ${d.store_id}`,`PMA groups: ${d.raw_x} (${d.x>=0?'+':''}${d.x} vs median)`,`Unit price: ฿${d.raw_y}`,`Baskets: ${d.basket_count.toLocaleString()}`,`Avg spend: ฿${d.avg_spend}`];}}}},scales:{x:{title:{display:true,text:'← fewer PMA groups · more PMA groups →',font:{size:10},color:'#9A9791'},grid:{color:ctx=>ctx.tick.value===0?'rgba(168,32,32,0.4)':'', lineWidth:ctx=>ctx.tick.value===0?1.5:0},ticks:{font:{size:10,family:'"DM Mono"'}, callback:v=>(v>0?'+':'')+v}},y:{title:{display:true,text:'↑ higher unit price · lower ↓',font:{size:10},color:'#9A9791'},grid:{color:ctx=>ctx.tick.value===0?'rgba(168,32,32,0.4)':'', lineWidth:ctx=>ctx.tick.value===0?1.5:0},ticks:{font:{size:10,family:'"DM Mono"'}, callback:v=>(v>0?'+':'')+v+'฿'}}}}});
+
+  document.getElementById('scatter-tbl').innerHTML=[...rows].sort((a,b)=>b.basket_count-a.basket_count).map(r=>`<tr><td class="tn">${r.archetype}</td><td style="font-family:var(--mono)">${r.store_id}</td><td class="r" style="font-family:var(--mono)">${Number(r.basket_count).toLocaleString()}</td><td class="r" style="font-family:var(--mono)">${r.median_pma_groups}</td><td class="r" style="font-family:var(--mono)">฿${r.median_unit_price}</td><td class="r" style="font-family:var(--mono)">฿${r.avg_spend}</td><td class="r"><span class="vt vt${r.value_tier}">${r.value_tier}</span></td></tr>`).join('');
+
+  showQ(currentQ, null);
+}
+
+function showQ(q, el) {
+  currentQ=q;
+  if (el) { document.querySelectorAll('#p-scatter .tab').forEach(t=>t.classList.remove('active')); el.classList.add('active'); }
+  const sf=document.getElementById('scatter-store-sel')?.value||'ALL';
+  let rows=DATA.quadrant.filter(r=>r.quadrant===q);
+  if (sf!=='ALL') rows=rows.filter(r=>r.store_id===sf);
+  const qL={Q1:'Premium Mixed — High breadth · High unit price',Q2:'Small Expensive — Low breadth · High unit price',Q3:'Quick Cheap — Low breadth · Low unit price',Q4:'Volume Value — High breadth · Low unit price'};
+  const qC={Q1:'#0A6640',Q2:'#1A4FBF',Q3:'#A31F1F',Q4:'#8C5200'};
+  const el2=document.getElementById('qd-body');
+  if (!rows.length) { el2.innerHTML='<p style="color:var(--text3);font-size:11px">No quadrant data — re-run script with Quadrant_Summary sheet</p>'; return; }
+  el2.innerHTML=`<div style="display:flex;align-items:center;gap:8px;margin-bottom:12px"><span style="font-family:var(--mono);font-size:16px;font-weight:500;color:${qC[q]}">${q}</span><span style="font-size:11px;color:var(--text2)">${qL[q]}</span></div>
+    <div class="qd-grid">${rows.map(r=>`<div class="qd-cell"><div class="qd-store">Store ${r.store_id}</div>
+      <div class="qd-kpis">
+        <div><div class="qd-kpi-l">Baskets</div><div class="qd-kpi-v">${Number(r.basket_count).toLocaleString()}</div></div>
+        <div><div class="qd-kpi-l">% of store</div><div class="qd-kpi-v">${r.pct_of_store}%</div></div>
+        <div><div class="qd-kpi-l">Avg spend</div><div class="qd-kpi-v">฿${r.avg_spend}</div></div>
+        <div><div class="qd-kpi-l">฿/unit</div><div class="qd-kpi-v">฿${r.avg_unit_price}</div></div>
+      </div>
+      <div class="qd-sec">Top archetypes</div><div class="qd-list">${(r.top_archetypes||'—').split(' | ').join('<br>')}</div>
+      <div class="qd-sec" style="margin-top:8px">What they buy</div><div class="qd-list">${(r.top_sub_groups||'—').split(' | ').join('<br>')}</div>
+    </div>`).join('')}</div>`;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// GAPS
+// ═══════════════════════════════════════════════════════════════════
+function renderGaps() {
+  const sf=document.getElementById('gap-store-sel')?.value||'ALL';
+  const tf=document.getElementById('gap-type-sel')?.value||'ALL';
+  let rows=[...DATA.gaps];
+  if (sf!=='ALL') rows=rows.filter(r=>r.store_id===sf);
+  if (tf==='ZERO') rows=rows.filter(r=>r.gap_type==='ZERO');
+  if (tf==='GAP') rows=rows.filter(r=>r.gap_type==='⚠ GAP');
+  rows.sort((a,b)=>{const o={'ZERO':0,'⚠ GAP':1};return (o[a.gap_type]??2)-(o[b.gap_type]??2)||b.basket_count-a.basket_count;});
+  document.getElementById('gap-tbl-body').innerHTML=rows.slice(0,60).map(r=>{const t=getTrend(r.store_id,r.sub_group);return `<tr>
+    <td class="tn">${r.sub_group}</td><td class="ta">${r.archetype}</td>
+    <td style="font-family:var(--mono)">${r.store_id}</td>
+    <td class="r" style="font-family:var(--mono)">${Number(r.basket_count).toLocaleString()}</td>
+    <td class="r" style="font-family:var(--mono)">${r.penetration_pct}%</td>
+    <td class="r" style="font-family:var(--mono)">฿${r.seg_avg_spend||'—'}</td>
+    <td class="r" style="font-family:var(--mono)">฿${r.seg_avg_unit_price||'—'}</td>
+    <td class="r">${tBadge(t&&t.mtm)}</td><td class="r">${tBadge(t&&t.yty)}</td>
+    <td><span class="badge ${r.gap_type==='ZERO'?'bz':'bg'}">${r.gap_type}</span></td>
+  </tr>`;}).join('');
+  let hmlRows=DATA.hml;
+  if (sf!=='ALL') hmlRows=hmlRows.filter(r=>r.store_id===sf);
+  document.getElementById('hml-tbl-body').innerHTML=hmlRows.map(r=>`<tr>
+    <td class="tn">${r.pma_name||'PMA'+r.pma}</td>
+    <td style="font-family:var(--mono)">${r.store_id}</td>
+    <td class="r" style="font-family:var(--mono);color:var(--blue)">${r.H_pct||0}%</td>
+    <td class="r" style="font-family:var(--mono)">${r.M_pct||0}%</td>
+    <td class="r" style="font-family:var(--mono);color:var(--red)">${r.L_pct||0}%</td>
+    <td style="font-size:10px;color:var(--text3)">${r.hml_source||'—'}</td>
+    <td><div style="display:flex;height:6px;border-radius:3px;overflow:hidden;width:80px"><div style="background:#1A4FBF;width:${r.H_pct||0}%"></div><div style="background:#C4C0B8;width:${r.M_pct||0}%"></div><div style="background:#E0DDD6;width:${r.L_pct||0}%"></div></div></td>
+  </tr>`).join('');
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// LAYOUT CHANGES
+// ═══════════════════════════════════════════════════════════════════
+function showLC(store, el) {
+  if (el) { document.querySelectorAll('#p-layout .tab').forEach(t=>t.classList.remove('active')); el.classList.add('active'); }
+  renderLC(store);
+}
+
+function renderLC(storeFilter) {
+  const el=document.getElementById('lc-cards'); if (!el) return;
+  const rows=storeFilter==='all'?LAYOUT_CHANGES:LAYOUT_CHANGES.filter(r=>r.store===storeFilter);
+  el.innerHTML=rows.map(r=>{
+    let trendHtml='';
+    if (r.pmas&&r.pmas.length) {
+      const tRows=r.pmas.map(sg=>{
+        const t=getTrend(r.store,sg); if (!t) return '';
+        return `<div style="display:flex;align-items:center;justify-content:space-between;padding:2px 0;font-size:11px"><span style="color:var(--text2)">${sg}</span><span style="display:flex;gap:6px;align-items:center"><span style="font-size:9px;color:var(--text3)">MtM</span>${tBadge(t.mtm)}<span style="font-size:9px;color:var(--text3)">YtY</span>${tBadge(t.yty)}</span></div>`;
+      }).join('');
+      if (tRows) trendHtml=`<div style="margin-top:10px;padding-top:10px;border-top:.5px solid var(--border)"><div style="font-size:9px;font-weight:500;text-transform:uppercase;letter-spacing:.07em;color:var(--text3);margin-bottom:5px">PMA trend signal</div>${tRows}</div>`;
+    }
+    return `<div class="lcard">
+      <div class="lcard-hd">
+        <span class="lcard-store" style="background:${SC[r.store]}22;color:${SC[r.store]}">${r.store}</span>
+        <span class="lcard-ttl">${r.change}</span>
+        <span class="lcard-v ${r.verdict==='aligned'?'va':r.verdict==='tension'?'vt2':'vm'}">${r.verdict_text}</span>
+      </div>
+      <div class="lcard-body">
+        <div class="lcard-col"><div class="lcard-col-ttl">Planned change</div><div class="lcard-txt">${r.detail}</div></div>
+        <div class="lcard-col">
+          <div class="lcard-col-ttl">Basket signal</div>
+          <div class="lcard-txt">${r.basket_signal}</div>
+          <div style="margin-top:8px">${r.metrics.map(m=>`<span class="lm">${m}</span>`).join('')}</div>
+          ${trendHtml}
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// SHELF VIEW
+// ═══════════════════════════════════════════════════════════════════
+function switchShelfStore(s, el) {
+  shelfStore=s;
+  document.querySelectorAll('#p-shelves .card .tabs:first-child .tab').forEach(t=>t.classList.remove('active')); el.classList.add('active');
+  renderShelves();
+}
+function switchShelfFilter(f, el) {
+  shelfFilter=f;
+  document.querySelectorAll('#p-shelves .card .tabs:last-child .tab').forEach(t=>t.classList.remove('active')); el.classList.add('active');
+  renderShelves();
+}
+
+const tip=document.getElementById('tooltip');
+function showTip(e,r) {
+  tip.style.display='block';
+  document.getElementById('tip-title').textContent='Shelf '+r.shelf;
+  document.getElementById('tip-bpsd').textContent=r.bpsd!=null?r.bpsd.toLocaleString()+' ฿':'—';
+  document.getElementById('tip-mtm').textContent=r.mtm!=null?pct(r.mtm):'—';
+  document.getElementById('tip-hml').textContent=r.hml||'—';
+  document.getElementById('tip-ps').textContent=r.ps||'—';
+  document.getElementById('tip-plan').textContent=r.plan||'—';
+  moveTip(e);
+}
+function moveTip(e) {
+  const t=tip, x=e.clientX, y=e.clientY;
+  t.style.left=(x+14)+'px'; t.style.top=(y-40)+'px';
+  if (x+14+200>window.innerWidth) t.style.left=(x-210)+'px';
+}
+function hideTip() { tip.style.display='none'; }
+document.addEventListener('mousemove',e=>{if(tip.style.display!=='none')moveTip(e);});
+
+function renderShelves() {
+  const el=document.getElementById('shelf-body'); if (!el) return;
+  const rows=SHELF_DATA[shelfStore];
+  if (!rows||!rows.length) { el.innerHTML='<p style="color:var(--text3);font-size:11px;padding:16px 0">Load Layout_บัวนครินทร์.xlsx using the sidebar button.</p>'; return; }
+
+  let filtered=rows.filter(r=>r.plan||r.ps);
+  if (shelfFilter==='changed')   filtered=filtered.filter(r=>r.changed||r.planOnly);
+  if (shelfFilter==='growing')   filtered=filtered.filter(r=>r.mtm!=null&&r.mtm>0.05);
+  if (shelfFilter==='declining') filtered=filtered.filter(r=>r.mtm!=null&&r.mtm<-0.05);
+
+  // For bar scaling: max absolute MtM in visible set
+  const maxAbsMtm=Math.max(0.01,...filtered.filter(r=>r.mtm!=null).map(r=>Math.abs(r.mtm)));
+  const col=SC[shelfStore];
+
+  el.innerHTML=filtered.map((r,i)=>{
+    const mtmBar=r.mtm!=null?(()=>{
+      const pct2=Math.min(100,Math.abs(r.mtm)/maxAbsMtm*100);
+      const barCol=r.mtm>0.05?'#0A6640':r.mtm<-0.05?'#A31F1F':'#9A9791';
+      return `<div class="shelf-bar-wrap"><div class="shelf-bar-bg"><div class="shelf-bar-fill" style="width:${pct2}%;background:${barCol}"></div></div></div>`;
+    })():'<div class="shelf-bar-wrap"><div class="shelf-bar-bg"></div></div>';
+    const mtmPct=r.mtm!=null?`<span class="${r.mtm>0.05?'tb-pos':r.mtm<-0.05?'tb-neg':'tb-neu'}">${(r.mtm>=0?'+':'')+(r.mtm*100).toFixed(1)}%</span>`:'<span style="color:var(--text3);font-size:9px">—</span>';
+    const hmlStyle=r.hml==='High'?'color:var(--blue)':r.hml==='Low'?'color:var(--red)':'color:var(--text2)';
+    const chgBadge=r.changed?'<span class="badge bg">Changed</span>':r.planOnly?'<span class="badge bok">New</span>':r.psOnly?'<span class="badge bz">Removed</span>':'';
+    const rowBg=r.changed||r.planOnly?'background:rgba(140,82,0,0.03)':r.psOnly?'background:rgba(163,31,31,0.03)':'';
+    return `<div class="shelf-row" style="${rowBg}" data-i="${i}" 
+      onmouseenter="showTip(event,${JSON.stringify(r).replace(/"/g,'&quot;')});"
+      onmouseleave="hideTip()">
+      <span class="shelf-num" style="color:${col}">${r.shelf}</span>
+      <span class="shelf-label">${r.ps||'—'}</span>
+      <span class="shelf-plan">${r.plan||'—'}</span>
+      <span class="shelf-bpsd">${r.bpsd!=null?r.bpsd.toLocaleString():'—'}</span>
+      ${mtmBar}
+      <span style="text-align:right">${mtmPct}</span>
+      <span class="shelf-hml" style="${hmlStyle}">${r.hml||'—'}</span>
+      <span>${chgBadge}</span>
+    </div>`;
+  }).join('');
+
+  document.getElementById('shelf-count').textContent=filtered.length+' shelves';
+}
+
+// Init — render layout changes immediately (no data needed)
+renderLC('all');
+</script>
+</body>
+</html>
