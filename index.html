@@ -263,11 +263,24 @@ body{font-family:var(--sans);background:var(--bg);color:var(--text);min-height:1
   <div class="ph"><div class="ph-eye">Analysis · Opportunity Matrix</div><div class="ph-title"><strong>Breadth vs Spend Intensity</strong></div>
   <div class="ph-meta"><span class="ph-tag">X = distinct PMA groups (centred at median)</span><span class="ph-tag">Y = avg unit price ฿ (centred)</span><span class="ph-tag">Bubble = basket count</span></div></div>
   <div class="card">
-    <div class="card-hd">
+    <div class="card-hd" style="flex-wrap:wrap;gap:8px;align-items:flex-end">
       <span class="card-ttl">Quadrant scatter</span>
-      <select id="scatter-store-sel" onchange="renderScatter()" style="font-size:11px;border:.5px solid var(--border);border-radius:4px;padding:3px 8px;background:var(--surface);font-family:var(--sans);">
-        <option value="ALL">All stores</option><option value="13079">13079</option><option value="17436">17436</option><option value="18302">18302</option>
-      </select>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-left:auto;align-items:center">
+        <select id="scatter-store-sel" onchange="renderScatter()" style="font-size:11px;border:.5px solid var(--border);border-radius:4px;padding:4px 8px;background:var(--surface);font-family:var(--sans);">
+          <option value="ALL">All stores</option><option value="13079">13079</option><option value="17436">17436</option><option value="18302">18302</option>
+        </select>
+        <select id="scatter-pg-sel" onchange="onPGChange()" style="font-size:11px;border:.5px solid var(--border);border-radius:4px;padding:4px 8px;background:var(--surface);font-family:var(--sans);">
+          <option value="ALL">All product groups</option>
+        </select>
+        <select id="scatter-pma-sel" onchange="renderScatter()" style="font-size:11px;border:.5px solid var(--border);border-radius:4px;padding:4px 8px;background:var(--surface);font-family:var(--sans);">
+          <option value="ALL">All PMAs</option>
+        </select>
+        <span style="display:flex;border:.5px solid var(--border);border-radius:5px;overflow:hidden">
+          <button id="btn-breadth" onclick="setScatterMode('breadth')" style="font-size:11px;padding:4px 10px;background:var(--text);color:#fff;border:none;cursor:pointer;font-family:var(--sans)">Breadth</button>
+          <button id="btn-volume" onclick="setScatterMode('volume')" style="font-size:11px;padding:4px 10px;background:var(--surface);color:var(--text2);border:none;cursor:pointer;font-family:var(--sans)">Volume</button>
+        </span>
+        <button onclick="clearScatterFilter()" style="font-size:11px;padding:4px 10px;border:.5px solid var(--border);border-radius:4px;background:var(--surface);cursor:pointer;color:var(--text2)">Clear</button>
+      </div>
     </div>
     <div class="leg" id="leg-scatter"></div>
     <div style="position:relative;height:400px"><canvas id="ch-scatter"></canvas></div>
@@ -285,7 +298,7 @@ body{font-family:var(--sans);background:var(--bg);color:var(--text);min-height:1
   </div>
   <div class="card">
     <div class="card-hd"><span class="card-ttl">Scatter data table</span><span class="card-note">sorted by basket count</span></div>
-    <table class="tbl"><thead><tr><th>Archetype</th><th>Store</th><th class="r">Baskets</th><th class="r">PMA groups</th><th class="r">Avg unit ฿</th><th class="r">Avg spend ฿</th><th class="r">Value tier</th></tr></thead><tbody id="scatter-tbl"></tbody></table>
+    <table class="tbl"><thead><tr><th>Archetype</th><th>Store</th><th class="r">Baskets</th><th class="r" id="scatter-tbl-x-hdr">PMA groups</th><th class="r">Avg unit ฿</th><th class="r">Avg spend ฿</th><th class="r">Value tier</th></tr></thead><tbody id="scatter-tbl"></tbody></table>
   </div>
 </div>
 
@@ -574,9 +587,10 @@ const ARCH_SG = {
 };
 const IRREL = new Set(['Cigarette','Alcoholic Beverage','All Care Pharmacy','Variety & Connect & Publication','Ice Cream & Ice','Frozen & RTC','Kudsan']);
 
-let DATA = {arch:{},time:{},scatter:[],gaps:[],hml:[],vol:{},quadrant:[]};
+let DATA = {arch:{},time:{},scatter:[],scatter_pma:[],gaps:[],hml:[],vol:{},quadrant:[]};
 let SHELF_DATA = {};
 let shelfStore = '13079', shelfFilter = 'all';
+let scatterMode = 'breadth'; // 'breadth' | 'volume'
 let charts = {};
 let currentQ = 'Q1';
 
@@ -692,6 +706,7 @@ function parseBasket(wb) {
   DATA.time = {};
   time.forEach(r => { const s=String(r.store_id); if(!DATA.time[s]) DATA.time[s]=[]; DATA.time[s].push(r); });
   DATA.scatter = js('Scatter_Data').map(r=>({...r,store_id:String(r.store_id)}));
+  DATA.scatter_pma = js('Scatter_PMA').map(r=>({...r,store_id:String(r.store_id)}));
   DATA.quadrant = js('Quadrant_Summary').map(r=>({...r,store_id:String(r.store_id)}));
   DATA.hml = js('HML_Overview').map(r=>({...r,store_id:String(r.store_id)})).filter(r=>['13079','17436','18302'].includes(r.store_id)&&r.pma!=='ALL');
   const vol = js('SubGroup_Volume');
@@ -765,6 +780,7 @@ function renderAll() {
   ['13079','17436','18302'].forEach(s => renderStore(s));
   requestAnimationFrame(()=>{
     ['13079','17436','18302'].forEach(s => renderStoreTimeChart(s));
+    populatePGFilter();
     renderScatter();
     renderGaps();
     renderLC('all');
@@ -891,17 +907,96 @@ function renderStoreTimeChart(sid) {
 // ═══════════════════════════════════════════════════════════════════
 // SCATTER
 // ═══════════════════════════════════════════════════════════════════
+function setScatterMode(mode) {
+  scatterMode = mode;
+  document.getElementById('btn-breadth').style.background = mode==='breadth' ? 'var(--text)' : 'var(--surface)';
+  document.getElementById('btn-breadth').style.color      = mode==='breadth' ? '#fff' : 'var(--text2)';
+  document.getElementById('btn-volume').style.background  = mode==='volume'  ? 'var(--text)' : 'var(--surface)';
+  document.getElementById('btn-volume').style.color       = mode==='volume'  ? '#fff' : 'var(--text2)';
+  renderScatter();
+}
+
+function clearScatterFilter() {
+  document.getElementById('scatter-pg-sel').value='ALL';
+  document.getElementById('scatter-pma-sel').innerHTML='<option value="ALL">All PMAs</option>';
+  renderScatter();
+}
+
+function populatePGFilter() {
+  const pgs=[...new Set(DATA.scatter_pma.map(r=>r.product_group))].sort();
+  const sel=document.getElementById('scatter-pg-sel');
+  sel.innerHTML='<option value="ALL">All product groups</option>'+pgs.map(p=>`<option value="${p}">${p}</option>`).join('');
+}
+
+function onPGChange() {
+  const pg=document.getElementById('scatter-pg-sel').value;
+  const pmasel=document.getElementById('scatter-pma-sel');
+  if (pg==='ALL') {
+    pmasel.innerHTML='<option value="ALL">All PMAs</option>';
+  } else {
+    const pmas=[...new Map(DATA.scatter_pma.filter(r=>r.product_group===pg).map(r=>[r.pma,r.pma_name])).entries()].sort((a,b)=>a[0]-b[0]);
+    pmasel.innerHTML='<option value="ALL">All PMAs in '+pg+'</option>'+pmas.map(([pma,nm])=>`<option value="${pma}">${pma} – ${nm}</option>`).join('');
+  }
+  renderScatter();
+}
+
 function renderScatter() {
-  const sf=document.getElementById('scatter-store-sel')?.value||'ALL';
-  let rows=DATA.scatter;
-  if (sf!=='ALL') rows=rows.filter(r=>r.store_id===sf);
+  const sf =document.getElementById('scatter-store-sel')?.value||'ALL';
+  const pgf=document.getElementById('scatter-pg-sel')?.value||'ALL';
+  const pmaf=document.getElementById('scatter-pma-sel')?.value||'ALL';
+
+  // Populate PG dropdown once data loads
+  if (DATA.scatter_pma.length && document.getElementById('scatter-pg-sel').options.length<2) {
+    populatePGFilter();
+  }
+
+  let rows;
+  const xField   = scatterMode==='volume' ? 'x_units_centred' : 'x_centred';
+  const xRawField= scatterMode==='volume' ? 'median_units'     : 'median_pma_groups';
+  const xLabel   = scatterMode==='volume' ? 'Units/basket'     : 'PMA groups';
+  const xAxisLbl = scatterMode==='volume'
+    ? '← fewer units per basket · more units →'
+    : '← fewer PMA groups · more PMA groups →';
+
+  if (pgf==='ALL' && pmaf==='ALL') {
+    // No PMA filter — use Scatter_Data (archetype aggregates)
+    rows=DATA.scatter.map(r=>({...r, _x: r[xField]??r.x_centred, _xraw: r[xRawField]??r.median_pma_groups }));
+    if (sf!=='ALL') rows=rows.filter(r=>r.store_id===sf);
+  } else {
+    // PMA filter active — derive scatter from Scatter_PMA
+    let pmaRows=DATA.scatter_pma;
+    if (sf!=='ALL')  pmaRows=pmaRows.filter(r=>r.store_id===sf);
+    if (pmaf!=='ALL') pmaRows=pmaRows.filter(r=>String(r.pma)===String(pmaf));
+    else if (pgf!=='ALL') pmaRows=pmaRows.filter(r=>r.product_group===pgf);
+    // Roll up to store × archetype
+    const key=r=>r.store_id+'|'+r.archetype;
+    const agg={};
+    pmaRows.forEach(r=>{
+      const k=key(r);
+      if (!agg[k]) agg[k]={store_id:r.store_id,archetype:r.archetype,basket_count:0,x_sum:0,y_sum:0,spend_sum:0,value_tier:r.value_tier};
+      agg[k].basket_count+=r.basket_count;
+      agg[k].x_sum+=r.x_centred*r.basket_count;
+      agg[k].y_sum+=r.y_centred*r.basket_count;
+      agg[k].spend_sum+=r.avg_spend*r.basket_count;
+    });
+    rows=Object.values(agg).map(a=>({
+      ...a,
+      x_centred:  a.x_sum/a.basket_count,
+      y_centred:  a.y_sum/a.basket_count,
+      avg_spend:  (a.spend_sum/a.basket_count).toFixed(1),
+      median_pma_groups:'—', median_unit_price:'—',
+      _x: a.x_sum/a.basket_count,
+      _xraw: '—',
+    }));
+  }
   if (!rows.length) return;
   const archs=[...new Set(rows.map(r=>r.archetype))];
   document.getElementById('leg-scatter').innerHTML=archs.map(a=>`<span class="leg-i"><span class="leg-sq" style="background:${ARCH_COLORS[a]||'#888'}"></span>${a}</span>`).join('');
   const maxB=Math.max(...rows.map(r=>r.basket_count));
-  mkChart('ch-scatter',{type:'bubble',data:{datasets:archs.map(a=>({label:a,data:rows.filter(r=>r.archetype===a).map(r=>({x:r.x_centred,y:r.y_centred,r:Math.max(5,Math.sqrt(r.basket_count/maxB)*44),raw_x:r.median_pma_groups,raw_y:r.median_unit_price,basket_count:r.basket_count,store_id:r.store_id,avg_spend:r.avg_spend,value_tier:r.value_tier,archetype:a})),backgroundColor:(ARCH_COLORS[a]||'#888')+'70',borderColor:ARCH_COLORS[a]||'#888',borderWidth:1.5}))},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>{const d=ctx.raw;return [`${d.archetype} · Store ${d.store_id}`,`PMA groups: ${d.raw_x} (${d.x>=0?'+':''}${d.x} vs median)`,`Unit price: ฿${d.raw_y}`,`Baskets: ${d.basket_count.toLocaleString()}`,`Avg spend: ฿${d.avg_spend}`];}}}},scales:{x:{title:{display:true,text:'← fewer PMA groups · more PMA groups →',font:{size:10},color:'#9A9791'},grid:{color:ctx=>ctx.tick.value===0?'rgba(168,32,32,0.4)':'', lineWidth:ctx=>ctx.tick.value===0?1.5:0},ticks:{font:{size:10,family:'"DM Mono"'}, callback:v=>(v>0?'+':'')+v}},y:{title:{display:true,text:'↑ higher unit price · lower ↓',font:{size:10},color:'#9A9791'},grid:{color:ctx=>ctx.tick.value===0?'rgba(168,32,32,0.4)':'', lineWidth:ctx=>ctx.tick.value===0?1.5:0},ticks:{font:{size:10,family:'"DM Mono"'}, callback:v=>(v>0?'+':'')+v+'฿'}}}}});
+  mkChart('ch-scatter',{type:'bubble',data:{datasets:archs.map(a=>({label:a,data:rows.filter(r=>r.archetype===a).map(r=>({x:r._x??r.x_centred,y:r.y_centred,r:Math.max(5,Math.sqrt(r.basket_count/maxB)*44),raw_x:r._xraw??r.median_pma_groups,raw_y:r.median_unit_price,basket_count:r.basket_count,store_id:r.store_id,avg_spend:r.avg_spend,value_tier:r.value_tier,archetype:a})),backgroundColor:(ARCH_COLORS[a]||'#888')+'70',borderColor:ARCH_COLORS[a]||'#888',borderWidth:1.5}))},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>{const d=ctx.raw;return [`${d.archetype} · Store ${d.store_id}`,`PMA groups: ${d.raw_x} (${d.x>=0?'+':''}${d.x} vs median)`,`Unit price: ฿${d.raw_y}`,`Baskets: ${d.basket_count.toLocaleString()}`,`Avg spend: ฿${d.avg_spend}`];}}}},scales:{x:{title:{display:true,text:xAxisLbl,font:{size:10},color:'#9A9791'},grid:{color:ctx=>ctx.tick.value===0?'rgba(168,32,32,0.4)':'', lineWidth:ctx=>ctx.tick.value===0?1.5:0},ticks:{font:{size:10,family:'"DM Mono"'}, callback:v=>(v>0?'+':'')+v}},y:{title:{display:true,text:'↑ higher unit price · lower ↓',font:{size:10},color:'#9A9791'},grid:{color:ctx=>ctx.tick.value===0?'rgba(168,32,32,0.4)':'', lineWidth:ctx=>ctx.tick.value===0?1.5:0},ticks:{font:{size:10,family:'"DM Mono"'}, callback:v=>(v>0?'+':'')+v+'฿'}}}}});
 
-  document.getElementById('scatter-tbl').innerHTML=[...rows].sort((a,b)=>b.basket_count-a.basket_count).map(r=>`<tr><td class="tn">${r.archetype}</td><td style="font-family:var(--mono)">${r.store_id}</td><td class="r" style="font-family:var(--mono)">${Number(r.basket_count).toLocaleString()}</td><td class="r" style="font-family:var(--mono)">${r.median_pma_groups}</td><td class="r" style="font-family:var(--mono)">฿${r.median_unit_price}</td><td class="r" style="font-family:var(--mono)">฿${r.avg_spend}</td><td class="r"><span class="vt vt${r.value_tier}">${r.value_tier}</span></td></tr>`).join('');
+  const xHdr=document.getElementById('scatter-tbl-x-hdr'); if(xHdr) xHdr.textContent=xLabel;
+  document.getElementById('scatter-tbl').innerHTML=[...rows].sort((a,b)=>b.basket_count-a.basket_count).map(r=>`<tr><td class="tn">${r.archetype}</td><td style="font-family:var(--mono)">${r.store_id}</td><td class="r" style="font-family:var(--mono)">${Number(r.basket_count).toLocaleString()}</td><td class="r" style="font-family:var(--mono)">${r._xraw??r.median_pma_groups}</td><td class="r" style="font-family:var(--mono)">฿${r.median_unit_price}</td><td class="r" style="font-family:var(--mono)">฿${r.avg_spend}</td><td class="r"><span class="vt vt${r.value_tier}">${r.value_tier}</span></td></tr>`).join('');
 
   showQ(currentQ, null);
 }
