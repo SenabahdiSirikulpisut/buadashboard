@@ -587,7 +587,7 @@ const ARCH_SG = {
 };
 const IRREL = new Set(['Cigarette','Alcoholic Beverage','All Care Pharmacy','Variety & Connect & Publication','Ice Cream & Ice','Frozen & RTC','Kudsan']);
 
-let DATA = {arch:{},time:{},scatter:[],scatter_pma:[],gaps:[],hml:[],vol:{},quadrant:[]};
+let DATA = {arch:{},time:{},scatter:[],scatter_pma:[],gaps:[],hml:[],vol:{},quadrant:[],comm_median_price:0,comm_median_pma:0,comm_median_units:0};
 let SHELF_DATA = {};
 let shelfStore = '13079', shelfFilter = 'all';
 let scatterMode = 'breadth'; // 'breadth' | 'volume'
@@ -706,6 +706,12 @@ function parseBasket(wb) {
   DATA.time = {};
   time.forEach(r => { const s=String(r.store_id); if(!DATA.time[s]) DATA.time[s]=[]; DATA.time[s].push(r); });
   DATA.scatter = js('Scatter_Data').map(r=>({...r,store_id:String(r.store_id)}));
+  // Store community medians from first row for use in PMA aggregation
+  if (DATA.scatter.length) {
+    DATA.comm_median_price = DATA.scatter[0].community_median_price || 0;
+    DATA.comm_median_pma   = DATA.scatter[0].community_median_pma   || 0;
+    DATA.comm_median_units = DATA.scatter[0].community_median_units  || 0;
+  }
   DATA.scatter_pma = js('Scatter_PMA').map(r=>({...r,store_id:String(r.store_id)}));
   DATA.quadrant = js('Quadrant_Summary').map(r=>({...r,store_id:String(r.store_id)}));
   DATA.hml = js('HML_Overview').map(r=>({...r,store_id:String(r.store_id)})).filter(r=>['13079','17436','18302'].includes(r.store_id)&&r.pma!=='ALL');
@@ -975,17 +981,17 @@ function renderScatter() {
       const k=key(r);
       if (!agg[k]) agg[k]={store_id:r.store_id,archetype:r.archetype,basket_count:0,x_sum:0,y_sum:0,spend_sum:0,price_sum:0,value_tier:r.value_tier};
       agg[k].basket_count+=r.basket_count;
-      agg[k].x_sum+=r.x_centred*r.basket_count;
-      agg[k].y_sum+=r.y_centred*r.basket_count;
-      agg[k].spend_sum+=r.avg_spend*r.basket_count;
-      agg[k].price_sum+=(r.median_unit_price||0)*r.basket_count;
+      agg[k].x_sum+=(+r.x_centred||0)*r.basket_count;
+      agg[k].y_sum+=(+r.y_centred||0)*r.basket_count;
+      agg[k].spend_sum+=(+r.avg_spend||0)*r.basket_count;
+      agg[k].price_sum+=(+r.median_unit_price||0)*r.basket_count;
     });
     rows=Object.values(agg).map(a=>({
       ...a,
       x_centred:         a.x_sum/a.basket_count,
-      y_centred:         a.y_sum/a.basket_count,
+      y_centred:         isNaN(a.price_sum/a.basket_count) ? 0 : (a.price_sum/a.basket_count) - (DATA.comm_median_price||0),
       avg_spend:         (a.spend_sum/a.basket_count).toFixed(1),
-      median_unit_price: (a.price_sum/a.basket_count).toFixed(1),
+      median_unit_price: isNaN(a.price_sum/a.basket_count) ? '—' : (a.price_sum/a.basket_count).toFixed(1),
       median_pma_groups: '—',
       _x:    a.x_sum/a.basket_count,
       _xraw: '—',
