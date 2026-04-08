@@ -205,6 +205,7 @@ body{font-family:var(--sans);background:var(--bg);color:var(--text);min-height:1
   <div class="ni" data-p="gaps" onclick="nav(this)"><span class="nd" style="background:#C0401A"></span>Gap & Ranging</div>
   <div class="ni" data-p="layout" onclick="nav(this)"><span class="nd" style="background:#6B3FA0"></span>Layout Changes</div>
   <div class="ni" data-p="shelves" onclick="nav(this)"><span class="nd" style="background:var(--s17)"></span>Shelf View</div>
+  <div class="ni" data-p="pmasummary" onclick="nav(this)"><span class="nd" style="background:#6B3FA0"></span>PMA Briefs</div>
   <div class="sb-foot">
     <div class="sb-st" id="st-basket">No basket data</div>
     <label class="sb-btn" for="f-basket">↑ basket_analysis_output.xlsx</label>
@@ -374,6 +375,139 @@ body{font-family:var(--sans);background:var(--bg);color:var(--text);min-height:1
     <div id="shelf-count" style="margin-top:8px;font-size:10px;color:var(--text3)"></div>
   </div>
 </div>
+
+
+<!-- PMA SUMMARY PANEL -->
+<div class="panel" id="p-pmasummary">
+  <div class="ph">
+    <div class="ph-eye">Intelligence · PMA Briefs</div>
+    <div class="ph-title"><strong>PMA × Store field briefs</strong> — sales + customer behavior</div>
+    <div class="ph-meta">
+      <span class="ph-tag">Requires basket_analysis_output.xlsx</span>
+      <span class="ph-tag">Claude API generates narrative per card</span>
+      <span class="ph-tag">Printable to PDF</span>
+    </div>
+  </div>
+
+  <div style="display:flex;gap:8px;align-items:center;margin-bottom:16px;flex-wrap:wrap">
+    <select id="pma-store-sel" style="font-size:11px;border:.5px solid var(--border);border-radius:4px;padding:4px 8px;background:var(--surface);font-family:var(--sans);">
+      <option value="ALL">All stores</option>
+      <option value="13079">13079</option>
+      <option value="17436">17436</option>
+      <option value="18302">18302</option>
+    </select>
+    <select id="pma-pg-sel" style="font-size:11px;border:.5px solid var(--border);border-radius:4px;padding:4px 8px;background:var(--surface);font-family:var(--sans);">
+      <option value="ALL">All product groups</option>
+    </select>
+    <button onclick="buildPMACards()" style="padding:5px 14px;font-size:11px;background:var(--text);color:#fff;border:none;border-radius:5px;cursor:pointer;font-family:var(--sans)">Generate briefs</button>
+    <button onclick="window.print()" style="padding:5px 14px;font-size:11px;background:var(--surface);color:var(--text2);border:.5px solid var(--border);border-radius:5px;cursor:pointer;font-family:var(--sans)">Print / Save PDF</button>
+    <span id="pma-progress" style="font-size:10px;color:var(--text3);font-family:var(--mono)"></span>
+  </div>
+
+  <div id="pma-cards-wrap">
+    <p style="color:var(--text3);font-size:11px">Load basket_analysis_output.xlsx then click Generate briefs.</p>
+  </div>
+</div>
+
+<style>
+/* PMA BRIEF CARD */
+.pma-card {
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:10px;
+  padding:20px 24px;
+  margin-bottom:14px;
+  page-break-inside: avoid;
+}
+.pma-card-hd {
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  margin-bottom:14px;
+  gap:12px;
+  flex-wrap:wrap;
+}
+.pma-card-title {
+  font-size:15px;
+  font-weight:500;
+  letter-spacing:-.01em;
+}
+.pma-card-sub {
+  font-size:11px;
+  color:var(--text2);
+  margin-top:2px;
+}
+.pma-kpis {
+  display:flex;
+  gap:14px;
+  flex-wrap:wrap;
+}
+.pma-kpi {
+  text-align:right;
+}
+.pma-kpi-l {
+  font-size:9px;
+  font-weight:500;
+  text-transform:uppercase;
+  letter-spacing:.07em;
+  color:var(--text3);
+  margin-bottom:2px;
+}
+.pma-kpi-v {
+  font-family:var(--mono);
+  font-size:14px;
+  font-weight:500;
+}
+.pma-body {
+  display:grid;
+  grid-template-columns:1fr 1fr 1fr;
+  gap:14px;
+  margin-bottom:14px;
+}
+.pma-section-ttl {
+  font-size:9px;
+  font-weight:500;
+  text-transform:uppercase;
+  letter-spacing:.08em;
+  color:var(--text3);
+  margin-bottom:6px;
+}
+.pma-section-val {
+  font-size:12px;
+  color:var(--text);
+  line-height:1.6;
+}
+.pma-brief {
+  background:var(--s2);
+  border-radius:7px;
+  padding:12px 16px;
+  font-size:12px;
+  color:var(--text);
+  line-height:1.65;
+  font-style:italic;
+}
+.pma-brief-loading {
+  color:var(--text3);
+  font-size:11px;
+  font-style:normal;
+}
+.pma-store-tag {
+  font-family:var(--mono);
+  font-size:10px;
+  padding:2px 8px;
+  border-radius:3px;
+  font-weight:500;
+}
+
+/* PRINT STYLES */
+@media print {
+  .sidebar, .ph, [data-p], button, select, #pma-progress { display:none !important; }
+  .main { margin-left:0 !important; padding:16px !important; width:100% !important; }
+  .pma-card { page-break-inside:avoid; margin-bottom:20px; border:1px solid #ccc; }
+  .pma-body { grid-template-columns:1fr 1fr 1fr; }
+  body { font-size:12px; }
+}
+</style>
 
 </div><!-- /main -->
 
@@ -654,6 +788,7 @@ function nav(el) {
   if (el.dataset.p==='gaps') renderGaps();
   if (el.dataset.p==='layout') renderLC('all');
   if (el.dataset.p==='shelves') renderShelves();
+  if (el.dataset.p==='pmasummary') initPMASummary();
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -1181,6 +1316,285 @@ function renderShelves() {
 
 // Init — render layout changes immediately (no data needed)
 renderLC('all');
+
+// ═══════════════════════════════════════════════════════════════════
+// PMA SUMMARY BRIEFS
+// ═══════════════════════════════════════════════════════════════════
+
+function initPMASummary() {
+  // Populate product group filter from scatter_pma data
+  const pgs = [...new Set(DATA.scatter_pma.map(r => r.product_group))].filter(Boolean).sort();
+  const sel = document.getElementById('pma-pg-sel');
+  if (sel && sel.options.length < 2) {
+    sel.innerHTML = '<option value="ALL">All product groups</option>' +
+      pgs.map(p => `<option value="${p}">${p}</option>`).join('');
+  }
+}
+
+function getPMACardData() {
+  // Build list of PMA × store combos from scatter_pma + layout data
+  const storeFilter = document.getElementById('pma-store-sel').value;
+  const pgFilter    = document.getElementById('pma-pg-sel').value;
+
+  // Group scatter_pma by pma × store
+  const index = {};
+  DATA.scatter_pma.forEach(r => {
+    if (storeFilter !== 'ALL' && r.store_id !== storeFilter) return;
+    if (pgFilter    !== 'ALL' && r.product_group !== pgFilter) return;
+    const key = r.pma + '|' + r.store_id;
+    if (!index[key]) index[key] = {
+      pma: r.pma, pma_name: r.pma_name,
+      product_group: r.product_group, sub_group: r.sub_group,
+      store_id: r.store_id,
+      archetypes: [], total_baskets: 0,
+    };
+    index[key].archetypes.push({
+      archetype:    r.archetype,
+      basket_count: r.basket_count,
+      pct_of_arch:  r.pct_of_arch,
+      avg_spend:    r.avg_spend,
+      value_tier:   r.value_tier,
+    });
+    index[key].total_baskets += r.basket_count;
+  });
+
+  // Sort archetypes by basket_count desc within each card
+  Object.values(index).forEach(card => {
+    card.archetypes.sort((a, b) => b.basket_count - a.basket_count);
+  });
+
+  // Only include PMAs with BPSD data (ranged shelves)
+  // Get BPSD + MtM from SHELF_DATA
+  const shelfIndex = {};
+  Object.entries(SHELF_DATA).forEach(([sid, shelves]) => {
+    shelves.forEach(sh => {
+      if (sh.bpsd && sh.bpsd > 0 && sh.plan) {
+        // Try to match shelf label to PMA
+        const label = (sh.plan || sh.ps || '').toLowerCase();
+        shelfIndex[sid + '|' + sh.shelf] = sh;
+      }
+    });
+  });
+
+  // Get PMA trend from TREND data
+  const getTrendForPMA = (storeId, pmaNum) => {
+    const td = TREND[storeId];
+    if (!td) return null;
+    const pmaStr = String(pmaNum).padStart(2, '0');
+    for (const [key, vals] of Object.entries(td)) {
+      if (key.startsWith(pmaStr + ' ') || key.startsWith(pmaStr + ' ')) {
+        return vals;
+      }
+    }
+    // Also try matching by number prefix
+    for (const [key, vals] of Object.entries(td)) {
+      if (key.match(/^0*(\d+)\s/)?.[1] === String(pmaNum)) return vals;
+    }
+    return null;
+  };
+
+  // Get time slot bias from TimeSlot + archetype data
+  const getTimeBias = (storeId, topArch) => {
+    const timeRows = DATA.time[storeId] || [];
+    if (!timeRows.length) return null;
+    const peak = [...timeRows].sort((a, b) => b.pct_of_store - a.pct_of_store)[0];
+    return peak ? peak.time_slot : null;
+  };
+
+  // Get co-occurrence signal: for each PMA, what else do customers buy?
+  // Co-occurrence is in Scatter_PMA — other PMAs that appear in same archetypes
+  const getCoocSignal = (storeId, pmaNum, topArch) => {
+    if (!topArch) return [];
+    // Find other PMAs in the same top archetype for this store
+    return DATA.scatter_pma
+      .filter(r => r.store_id === storeId && r.archetype === topArch && r.pma !== pmaNum)
+      .sort((a, b) => b.basket_count - a.basket_count)
+      .slice(0, 3)
+      .map(r => r.pma_name);
+  };
+
+  return Object.values(index).filter(c => c.total_baskets > 0).sort((a, b) => {
+    if (a.product_group !== b.product_group) return a.product_group.localeCompare(b.product_group);
+    return a.pma - b.pma || a.store_id.localeCompare(b.store_id);
+  }).map(card => {
+    const trend = getTrendForPMA(card.store_id, card.pma);
+    const topArch = card.archetypes[0]?.archetype;
+    const timeBias = getTimeBias(card.store_id, topArch);
+    const cooc = getCoocSignal(card.store_id, card.pma, topArch);
+
+    // Derive walk pattern from archetype mix
+    // Single-PMA archetypes (Quick Drink, Fresh Grab, Necessity Run) = quick buy
+    // Multi-PMA archetypes (Fresh-Led Mixed, Big Mixed Shop) = wanderer
+    const QUICK_ARCHS = new Set(['Quick Drink','Fresh Grab','Necessity Run','Snack / Processed']);
+    const WANDER_ARCHS = new Set(['Fresh-Led Mixed','Big Mixed Shop','Other Mixed']);
+    const topIsQuick   = QUICK_ARCHS.has(topArch);
+    const topIsWander  = WANDER_ARCHS.has(topArch);
+    const walkSignal   = topIsQuick ? 'quick-buy' : topIsWander ? 'wanderer' : 'mixed';
+
+    return {
+      ...card,
+      trend,
+      topArch,
+      timeBias,
+      cooc,
+      walkSignal,
+    };
+  });
+}
+
+async function buildPMACards() {
+  const cards = getPMACardData();
+  if (!cards.length) {
+    document.getElementById('pma-cards-wrap').innerHTML =
+      '<p style="color:var(--text3);font-size:11px">No data — load basket_analysis_output.xlsx first.</p>';
+    return;
+  }
+
+  const wrap = document.getElementById('pma-cards-wrap');
+  const progress = document.getElementById('pma-progress');
+  const SC2 = {'13079':'#1A4FBF','17436':'#0A6640','18302':'#8C3A1A'};
+
+  // Render all cards with placeholder briefs first
+  wrap.innerHTML = cards.map((card, i) => {
+    const trend = card.trend;
+    const mtmVal = trend?.mtm != null ? ((trend.mtm*100).toFixed(1)) : null;
+    const ytyVal = trend?.yty != null ? ((trend.yty*100).toFixed(1)) : null;
+    const mtmStr = mtmVal ? (trend.mtm>=0?'+':'')+mtmVal+'%' : '—';
+    const ytyStr = ytyVal ? (trend.yty>=0?'+':'')+ytyVal+'%' : '—';
+    const mtmCol = trend?.mtm > 0.05 ? 'var(--green)' : trend?.mtm < -0.05 ? 'var(--red)' : 'var(--text2)';
+    const ytyCol = trend?.yty > 0.05 ? 'var(--green)' : trend?.yty < -0.05 ? 'var(--red)' : 'var(--text2)';
+
+    // Top 3 archetypes
+    const archLines = card.archetypes.slice(0,3).map(a =>
+      `${a.archetype} — ${a.basket_count.toLocaleString()} baskets (${a.pct_of_arch}% of arch · ฿${a.avg_spend} avg)`
+    ).join('<br>');
+
+    // Walk signal label
+    const walkLabel = {
+      'quick-buy': '⚡ Quick-buy — targeted trip, low dwell',
+      'wanderer':  '🔀 Wanderer — broad shop, high adjacency value',
+      'mixed':     '↔ Mixed — some targeted, some browsing',
+    }[card.walkSignal];
+
+    // Co-occurrence
+    const coocLabel = card.cooc.length ? 'Buys alongside: ' + card.cooc.join(', ') : '—';
+
+    // Time label
+    const timeLabel = card.timeBias ?
+      card.timeBias.replace('Morning (6-10)','Morning 6–10').replace('Midday (10-14)','Midday 10–14')
+      .replace('Afternoon (14-18)','Afternoon 14–18').replace('Evening (18-22)','Evening 18–22')
+      .replace('Late Night (22-24)','Late Night') : '—';
+
+    return `
+    <div class="pma-card" id="pma-card-${i}">
+      <div class="pma-card-hd">
+        <div>
+          <div class="pma-card-title">PMA${String(card.pma).padStart(2,'0')} · ${card.pma_name}</div>
+          <div class="pma-card-sub">${card.product_group} · ${card.sub_group}</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+          <span class="pma-store-tag" style="background:${SC2[card.store_id]}22;color:${SC2[card.store_id]}">
+            Store ${card.store_id}
+          </span>
+          <div class="pma-kpis">
+            <div class="pma-kpi">
+              <div class="pma-kpi-l">MtM</div>
+              <div class="pma-kpi-v" style="color:${mtmCol}">${mtmStr}</div>
+            </div>
+            <div class="pma-kpi">
+              <div class="pma-kpi-l">YtY</div>
+              <div class="pma-kpi-v" style="color:${ytyCol}">${ytyStr}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="pma-body">
+        <div>
+          <div class="pma-section-ttl">Customer segments</div>
+          <div class="pma-section-val">${archLines || '—'}</div>
+        </div>
+        <div>
+          <div class="pma-section-ttl">Store walk & time</div>
+          <div class="pma-section-val">${walkLabel}<br><span style="color:var(--text2)">Peak: ${timeLabel}</span></div>
+          <div class="pma-section-val" style="margin-top:8px;font-size:11px;color:var(--text3)">${coocLabel}</div>
+        </div>
+        <div>
+          <div class="pma-section-ttl">Trend signal</div>
+          <div class="pma-section-val">${
+            trend?.yty != null
+              ? (trend.yty > 0.15 ? 'Strong growth — momentum category'
+                : trend.yty > 0.05 ? 'Moderate growth — holding share'
+                : trend.yty > -0.05 ? 'Flat — stable but no momentum'
+                : trend.yty > -0.20 ? 'Declining — losing share'
+                : 'Sharp decline — review ranging')
+              : '—'
+          }${trend?.mtm != null && trend.mtm > 0.3 && (trend.yty == null || trend.yty < 0.1)
+              ? '<br><span style="font-size:10px;color:var(--amber)">MtM spike — check for seasonal/promo effect</span>' : ''
+          }</div>
+        </div>
+      </div>
+      <div class="pma-brief" id="brief-${i}">
+        <span class="pma-brief-loading">Generating brief…</span>
+      </div>
+    </div>`;
+  }).join('');
+
+  // Now generate Claude briefs sequentially
+  progress.textContent = `0 / ${cards.length} briefs generated`;
+  for (let i = 0; i < cards.length; i++) {
+    const card = cards[i];
+    progress.textContent = `${i+1} / ${cards.length} generating…`;
+    const brief = await generateBrief(card);
+    const el = document.getElementById(`brief-${i}`);
+    if (el) el.innerHTML = brief;
+  }
+  progress.textContent = `${cards.length} briefs complete`;
+}
+
+async function generateBrief(card) {
+  const trend = card.trend;
+  const topArch = card.archetypes[0];
+  const archs = card.archetypes.slice(0,3).map(a =>
+    `${a.archetype} (${a.basket_count} baskets, ${a.pct_of_arch}% of that segment, ฿${a.avg_spend} avg spend)`
+  ).join(', ');
+
+  const prompt = `You are a Thai convenience store analyst writing a one-paragraph field brief for a store manager. Be direct and specific. No intro phrases like "This PMA" or "The data shows". Start with the key insight.
+
+PMA: ${card.pma_name} (PMA${String(card.pma).padStart(2,'0')})
+Store: ${card.store_id} in ชุมชนบัวนครินทร์
+Product group: ${card.product_group} / ${card.sub_group}
+
+Sales trend:
+- MtM: ${trend?.mtm != null ? ((trend.mtm*100).toFixed(1))+'%' : 'no data'}
+- YtY: ${trend?.yty != null ? ((trend.yty*100).toFixed(1))+'%' : 'no data'}
+
+Customer segments buying this PMA:
+${archs || 'no segment data'}
+
+Store walk pattern: ${card.walkSignal} (${card.topArch} is dominant archetype)
+Peak shopping time: ${card.timeBias || 'unknown'}
+Co-purchased with: ${card.cooc.join(', ') || 'no co-occurrence data'}
+
+Write exactly 2–3 sentences. Infer customer behavior from the data (e.g. if Morning + Fresh Grab → commuter on the way to work). State what the trend means for the store. End with one specific action if the data supports it.`;
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 200,
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+    const data = await res.json();
+    const text = data.content?.[0]?.text || 'Brief unavailable.';
+    return text;
+  } catch(e) {
+    return `<span class="pma-brief-loading">API unavailable — ${e.message}</span>`;
+  }
+}
+
 </script>
 </body>
 </html>
